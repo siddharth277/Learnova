@@ -15,8 +15,6 @@ import {
   Twitter,
   Linkedin,
   Facebook,
-  Building,
-  Users,
   Sparkles,
 } from "lucide-react";
 import emailjs from "@emailjs/browser";
@@ -30,14 +28,53 @@ export default function Contact() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
+  const [errors, setErrors] = useState({});
 
   const handleInputChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
+
+    setErrors((prev) => ({
+      ...prev,
+      [name]: "",
+    }));
   };
 
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.name.trim()) {
+      newErrors.name = "Name is required";
+    } else if (formData.name.trim().length < 2) {
+      newErrors.name = "Name must be at least 2 characters";
+    }
+
+    if (!formData.email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = "Enter a valid email address";
+    }
+
+    if (!formData.message.trim()) {
+      newErrors.message = "Message is required";
+    } else if (formData.message.trim().length < 10) {
+      newErrors.message = "Message must be at least 10 characters";
+    }
+
+    setErrors(newErrors);
+
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validateForm()) {
+      return;
+    }
     setIsSubmitting(true);
     setSubmitStatus(null);
 
@@ -175,15 +212,12 @@ export default function Contact() {
                       Send us a Message
                     </h2>
                     <p className="text-gray-400">
-                      Fill out the formData below and our team will get back to you
+                      Fill out the form below and our team will get back to you
                       within 24 hours.
                     </p>
                   </div>
 
-                  <form
-                    onSubmit={handleSubmit}
-                    className="space-y-6"
-                  >
+                  <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid md:grid-cols-2 gap-6">
                       <div className="space-y-2">
                         <label className="block text-white font-medium">
@@ -195,9 +229,13 @@ export default function Contact() {
                           value={formData.name}
                           onChange={handleInputChange}
                           placeholder="Enter your full name"
-                          required
                           className="w-full p-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-all duration-300"
                         />
+                        {errors.name && (
+                          <p className="text-red-400 text-sm mt-1">
+                            {errors.name}
+                          </p>
+                        )}
                       </div>
 
                       <div className="space-y-2">
@@ -210,9 +248,13 @@ export default function Contact() {
                           value={formData.email}
                           onChange={handleInputChange}
                           placeholder="you@example.com"
-                          required
                           className="w-full p-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-all duration-300"
                         />
+                        {errors.email && (
+                          <p className="text-red-400 text-sm mt-1">
+                            {errors.email}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -240,9 +282,13 @@ export default function Contact() {
                         onChange={handleInputChange}
                         rows="5"
                         placeholder="Tell us about your needs and how we can help..."
-                        required
                         className="w-full p-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-all duration-300 resize-none"
                       />
+                      {errors.message && (
+                        <p className="text-red-400 text-sm mt-1">
+                          {errors.message}
+                        </p>
+                      )}
                     </div>
 
                     {/* Submit Status */}
@@ -301,13 +347,14 @@ export default function Contact() {
                           <info.icon className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                          <p className="text-gray-400 text-sm">{info.label}</p>
-                          <a
-                            href={info.href}
-                            className="text-white text-lg font-medium hover:text-accent transition-colors duration-300"
-                          >
-                            {info.value}
-                          </a>
+                        <p className="text-gray-400 text-sm">{info.label}</p>
+
+<a
+  href={info.href}
+  className="text-white text-lg font-medium hover:text-accent transition-colors duration-300"
+>
+  {info.value}
+</a>
                         </div>
                       </div>
                     ))}
@@ -376,7 +423,6 @@ export default function Contact() {
                     insights.
                   </p>
                 </div>
-
               </div>
             </div>
           </div>
