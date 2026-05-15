@@ -120,7 +120,6 @@ export default function Contact() {
       icon: MapPin,
       label: "Address",
       value: "Bhopal, India",
-      href: "#",
       gradient: "from-purple-500 to-pink-500",
     },
   ];
@@ -349,12 +348,18 @@ export default function Contact() {
                         <div>
                         <p className="text-gray-400 text-sm">{info.label}</p>
 
-<a
-  href={info.href}
-  className="text-white text-lg font-medium hover:text-accent transition-colors duration-300"
->
-  {info.value}
-</a>
+                        {info.href ? (
+                          <a
+                            href={info.href}
+                            className="text-white text-lg font-medium hover:text-accent transition-colors duration-300"
+                          >
+                            {info.value}
+                          </a>
+                        ) : (
+                          <p className="text-white text-lg font-medium">
+                            {info.value}
+                          </p>
+                        )}
                         </div>
                       </div>
                     ))}
