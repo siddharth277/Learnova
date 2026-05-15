@@ -32,12 +32,16 @@ export function Navbar() {
   const dropdownRef = useRef(null);
   const pathname = usePathname();
 
-  // Handle scroll effect
+  // Handle scroll effect for transparency
+  const [scrollProgress, setScrollProgress] = useState(0);
+
   useEffect(() => {
     const handleScroll = () => {
+      const progress = Math.min(window.scrollY / 100, 1);
+      setScrollProgress(progress);
       setScrolled(window.scrollY > 20);
     };
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -159,15 +163,20 @@ export function Navbar() {
 
   return (
     <>
-      {/* Premium gradient background overlay */}
-      <div className="fixed w-full top-0 z-51 h-20 bg-gradient-to-b from-black/60 via-black/20 to-transparent pointer-events-none" />
+      {/* Premium gradient background overlay - Fades out as we scroll down to let glassmorphism shine */}
+      <div className="fixed w-full top-0 z-[60] h-24 bg-gradient-to-b from-black/60 via-black/10 to-transparent pointer-events-none transition-opacity duration-300" 
+           style={{ opacity: 1 - scrollProgress * 0.5 }} />
 
       <nav
-        className={`fixed w-full top-0 z-52 transition-all duration-100 ease-in-out ${
-          scrolled
-            ? "backdrop-blur-3xl border-b border-white/20 bg-black/40 shadow-2xl shadow-black/50"
-            : "backdrop-blur-2xl border-b border-white/10 bg-black/20"
-        }`}
+        className={`fixed w-full top-0 left-0 right-0 z-[70] transition-all duration-300 ease-out`}
+        style={{
+          backgroundColor: `rgba(0, 0, 0, ${scrollProgress * 0.4})`,
+          backdropFilter: `blur(${scrollProgress * 24}px)`,
+          WebkitBackdropFilter: `blur(${scrollProgress * 24}px)`,
+          borderBottom: `1px solid rgba(255, 255, 255, ${scrollProgress * 0.1})`,
+          paddingTop: `${0.5 - scrollProgress * 0.5}rem`,
+          paddingBottom: `${0.5 - scrollProgress * 0.5}rem`,
+        }}
       >
         {/* Premium shimmer effect - FIXED: Using CSS classes instead of inline styles */}
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 animate-shimmer opacity-0 hover:opacity-100 transition-opacity duration-1000" />
