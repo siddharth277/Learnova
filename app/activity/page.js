@@ -26,8 +26,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/Navbar";
 
+import { useAuth } from "@/hooks/useAuth";
+import { logActivity } from "@/services/activityService";
+
 export default function ActivityPage() {
+  const { user } = useAuth();
   const [scrollY, setScrollY] = useState(0);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedLevel, setSelectedLevel] = useState("all");
 
@@ -190,6 +195,23 @@ export default function ActivityPage() {
     return categoryMatch && levelMatch;
   });
 
+  const handleStartActivity = async (activity) => {
+    if (!user) {
+      alert("Please log in to track your learning progress!");
+      return;
+    }
+
+    // Log the activity to the database
+    await logActivity(user.uid, {
+      title: activity.title,
+      type: activity.type || "course",
+      progress: 0,
+    });
+
+    // Here add logic to actually open the quiz/game
+    alert(`Started ${activity.title}! Progress is now being tracked.`);
+  };
+
   const getDifficultyColor = (difficulty) => {
     switch (difficulty) {
       case "Beginner":
@@ -313,10 +335,11 @@ export default function ActivityPage() {
                       <button
                         key={category.id}
                         onClick={() => setSelectedCategory(category.id)}
-                        className={`flex items-center px-4 py-2 rounded-full transition-all duration-300 ${selectedCategory === category.id
-                          ? "bg-gradient-to-r from-accent to-purple-500 text-white"
-                          : "bg-black/30 text-gray-300 hover:bg-black/50 hover:text-white border border-white/10"
-                          }`}
+                        className={`flex items-center px-4 py-2 rounded-full transition-all duration-300 ${
+                          selectedCategory === category.id
+                            ? "bg-gradient-to-r from-accent to-purple-500 text-white"
+                            : "bg-black/30 text-gray-300 hover:bg-black/50 hover:text-white border border-white/10"
+                        }`}
                       >
                         <category.icon className="w-4 h-4 mr-2" />
                         {category.label}
@@ -335,10 +358,11 @@ export default function ActivityPage() {
                       <button
                         key={level.id}
                         onClick={() => setSelectedLevel(level.id)}
-                        className={`px-4 py-2 rounded-full transition-all duration-300 ${selectedLevel === level.id
-                          ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white"
-                          : "bg-black/30 text-gray-300 hover:bg-black/50 hover:text-white border border-white/10"
-                          }`}
+                        className={`px-4 py-2 rounded-full transition-all duration-300 ${
+                          selectedLevel === level.id
+                            ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white"
+                            : "bg-black/30 text-gray-300 hover:bg-black/50 hover:text-white border border-white/10"
+                        }`}
                       >
                         {level.label}
                       </button>
@@ -423,6 +447,7 @@ export default function ActivityPage() {
                     </div>
 
                     <Button
+                      onClick={() => handleStartActivity(activity)}
                       className={`w-full bg-gradient-to-r ${activity.gradient} hover:shadow-lg hover:shadow-accent/25 transition-all duration-300 group-hover:scale-[1.02]`}
                     >
                       <Play className="w-4 h-4 mr-2" />
@@ -476,10 +501,11 @@ export default function ActivityPage() {
                           </span>
                         </div>
                         <span
-                          className={`text-xs px-2 py-1 rounded-full ${activity.type === "quiz"
-                            ? "bg-blue-500/20 text-blue-300"
-                            : "bg-green-500/20 text-green-300"
-                            }`}
+                          className={`text-xs px-2 py-1 rounded-full ${
+                            activity.type === "quiz"
+                              ? "bg-blue-500/20 text-blue-300"
+                              : "bg-green-500/20 text-green-300"
+                          }`}
                         >
                           {activity.type}
                         </span>
@@ -517,6 +543,7 @@ export default function ActivityPage() {
 
                     <Button
                       size="sm"
+                      onClick={() => handleStartActivity(activity)}
                       className={`w-full bg-gradient-to-r ${activity.gradient} hover:shadow-md transition-all duration-300`}
                     >
                       <Play className="w-3 h-3 mr-2" />
