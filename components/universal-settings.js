@@ -241,7 +241,6 @@ export default function UniversalSettings() {
     setIsLoading(true);
    try {
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      await new Promise((resolve) => setTimeout(resolve, 1000));
       setHasChanges(false);
     } catch (error) {
       console.error("Failed to save settings:", error);
