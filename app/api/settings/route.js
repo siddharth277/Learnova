@@ -1,17 +1,24 @@
 import { NextResponse } from "next/server";
 import { connectDb } from "@/lib/mongodb";
+import { verifyFirebaseToken } from "@/lib/firebase-admin";
 
 export async function PATCH(request) {
   try {
-    const body = await request.json();
-    const { userId, ...settings } = body;
+    const authorization = request.headers.get("authorization");
+    const token = authorization?.split(" ")[1];
 
-    if (!userId) {
+    const decodedToken = await verifyFirebaseToken(token);
+
+    if (!decodedToken) {
       return NextResponse.json(
-        { error: "User ID is required" },
-        { status: 400 }
+        { error: "Unauthorized" },
+        { status: 401 }
       );
     }
+
+    const body = await request.json();
+    const { userId: bodyUserId, ...settings } = body;
+    const userId = decodedToken.uid;
 
     const db = await connectDb();
 
