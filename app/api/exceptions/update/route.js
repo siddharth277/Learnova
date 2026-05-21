@@ -42,8 +42,13 @@ export async function PUT(request) {
       return jsonError("exceptionId is required", 400);
     }
 
-    const validStatuses = ["pending", "approved", "rejected"];
-    if (status && !validStatuses.includes(status)) {
+    if (!ObjectId.isValid(exceptionId)) {
+      return jsonError("Invalid exception ID", 400);
+    }
+
+    const trimmedStatus = typeof status === "string" ? status.trim() : "";
+    const allowedStatuses = ["approved", "rejected"];
+    if (!allowedStatuses.includes(trimmedStatus)) {
       return jsonError("Invalid status value", 400);
     }
 
@@ -53,7 +58,7 @@ export async function PUT(request) {
       { _id: new ObjectId(exceptionId) },
       {
         $set: {
-          status,
+          status: trimmedStatus,
           comments,
           reviewedBy: decodedToken.email,
           reviewedAt: new Date(),
