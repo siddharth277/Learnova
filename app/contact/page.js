@@ -47,22 +47,17 @@ export default function Contact() {
 
   const validateForm = () => {
     const newErrors = {};
+    const { name, email, message } = formData;
 
-    if (!formData.name.trim()) {
-      newErrors.name = "Name is required";
-    } else if (formData.name.trim().length < 2) {
+    if (!name.trim() || name.trim().length < 2) {
       newErrors.name = "Name must be at least 2 characters";
     }
 
-    if (!formData.email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       newErrors.email = "Enter a valid email address";
     }
 
-    if (!formData.message.trim()) {
-      newErrors.message = "Message is required";
-    } else if (formData.message.trim().length < 10) {
+    if (!message.trim() || message.trim().length < 10) {
       newErrors.message = "Message must be at least 10 characters";
     }
 

@@ -552,19 +552,17 @@ export function Navbar() {
       </nav>
 
       {/* Mobile Menu */}
-      <button
-        aria-label="Close mobile menu"
-        className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[49] sm:hidden transition-opacity duration-300 ${
-          isMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        }`}
-        onClick={() => setIsMenuOpen(false)}
-      />
+      {isMenuOpen && (
+        <>
+          <button
+            aria-label="Close mobile menu"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[49] md:hidden"
+            onClick={() =>
+              setIsMenuOpen(false)
+            }
+          />
 
-      <div
-        className={`fixed top-0 right-0 h-full w-80 max-w-[85vw] bg-black z-[52] sm:hidden border-l border-white/10 shadow-2xl transition-transform duration-300 ease-in-out transform flex flex-col ${
-          isMenuOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
+          <div className="fixed top-0 right-0 h-full w-full max-w-[85vw] sm:max-w-sm bg-black z-[52] md:hidden border-l border-white/10 shadow-2xl overflow-x-hidden">
             <div className="p-6 border-b border-white/10 flex justify-between items-center">
               <h2 className="text-white text-lg font-bold">
                 Menu
