@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import useLabels from "@/components/useLabels"; // MongoDB hook
 import { recordAttendance } from "@/services/attendanceService";
+import { checkAndSendAttendanceAlert } from "@/services/statsService";
 import { analytics } from "@/lib/firebaseConfig";
 import { logEvent } from "firebase/analytics";
+import toast from "react-hot-toast";
 
 const MIN_CONFIDENCE_TO_RECORD = 60;
 

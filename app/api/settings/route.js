@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { connectDb } from "@/lib/mongodb";
 import { verifyFirebaseToken, getUserProfile } from "@/lib/firebase-admin";
+import { jsonError, jsonSuccess } from "@/lib/api-response";
 import { z } from "zod";
 
 const settingsSchema = z
@@ -96,7 +96,7 @@ export async function PATCH(request) {
     const authorization = request.headers.get("authorization");
     const token = authorization?.split(" ")[1];
 
-    const decodedToken = await verifyFirebaseToken(token);
+   const authResult = await verifyFirebaseToken(token);
 
     if (!decodedToken) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

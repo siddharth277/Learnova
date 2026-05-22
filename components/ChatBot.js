@@ -285,7 +285,10 @@ const LearnovaChatbot = () => {
         body: JSON.stringify({ message: userMessage }),
       });
 
-      const payload = await response.json().catch(() => ({}));
+      const payload = await response.json().catch((error) => {
+        console.error("Error:", error);
+        return { error: "Something went wrong" };
+      });
       if (response.ok) {
         const content = payload?.data?.message;
         if (content) {

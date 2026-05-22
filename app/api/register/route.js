@@ -34,10 +34,16 @@ export async function POST(req) {
       return jsonError("Unauthorized: No token provided", 401);
     }
 
-    const decodedToken = await verifyFirebaseToken(token);
-    if (!decodedToken) {
-      return jsonError("Unauthorized: Invalid token", 401);
+    const authResult = await verifyFirebaseToken(token);
+
+    if (!authResult.valid) {
+      return jsonError(
+        { message: "Unauthorized", reason: authResult.reason },
+        401
+      );
     }
+
+    const decodedToken = authResult.decodedToken;
 
     const formData = await req.formData();
     const name = normalizeText(formData.get("name"));
@@ -47,6 +53,13 @@ export async function POST(req) {
 
     if (!name || !rollNo || !email || !file) {
       return jsonError("Name, rollNo, email, and photo are required", 400);
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return jsonError("File size exceeds 5MB limit", 400);
+    }
+    if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+      return jsonError("Invalid file type. Only JPEG, PNG, and WebP are allowed", 400);
     }
 
     // 2. Prevent arbitrary registrations - Must register own email
