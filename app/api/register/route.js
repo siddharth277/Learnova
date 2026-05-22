@@ -41,12 +41,9 @@ export async function POST(req) {
     const authResult = await verifyFirebaseToken(token);
 
     if (!authResult.valid) {
-      return NextResponse.json(
-        {
-          error: "Unauthorized",
-          reason: authResult.reason,
-        },
-        { status: 401 }
+      return jsonError(
+        { message: "Unauthorized", reason: authResult.reason },
+        401
       );
     }
 
@@ -60,6 +57,13 @@ export async function POST(req) {
 
     if (!name || !rollNo || !email || !file) {
       return jsonError("Name, rollNo, email, and photo are required", 400);
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return jsonError("File size exceeds 5MB limit", 400);
+    }
+    if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+      return jsonError("Invalid file type. Only JPEG, PNG, and WebP are allowed", 400);
     }
 
     // 2. Prevent arbitrary registrations - Must register own email
