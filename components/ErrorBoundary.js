@@ -23,6 +23,12 @@ class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
+      const { fallback } = this.props;
+
+      if (fallback) {
+        return fallback;
+      }
+
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-900">
           <div className="text-center p-8 bg-gray-800 rounded-xl border border-gray-700 max-w-md">
@@ -30,8 +36,7 @@ class ErrorBoundary extends React.Component {
               Something went wrong
             </h2>
             <p className="text-gray-300 mb-6">
-              There was an error loading the authentication form. Please refresh
-              the page and try again.
+              {this.props.errorMessage || "An unexpected error occurred. Please refresh the page and try again."}
             </p>
             <button
               onClick={() => window.location.reload()}
