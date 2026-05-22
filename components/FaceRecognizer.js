@@ -14,6 +14,8 @@ import toast from "react-hot-toast";
 const MIN_CONFIDENCE_TO_RECORD = 60;
 
 export default function FaceRecognizer({ authUser }) {
+  const isMounted = useRef(true);
+  const retryStreamRef = useRef(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const { labels: fetchedLabels, loading: labelsLoading, error } = useLabels(authUser);
@@ -32,8 +34,12 @@ export default function FaceRecognizer({ authUser }) {
 
   const handleRetry = async () => {
     try {
+      if (retryStreamRef.current) {
+        retryStreamRef.current.getTracks().forEach(t => t.stop());
+      }
       // Try accessing the camera
       const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+      retryStreamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.onloadedmetadata = () => {
@@ -111,6 +117,11 @@ export default function FaceRecognizer({ authUser }) {
     if (!labelsLoading && !error && labels.length > 0) loadModels();
 
     return () => {
+      isMounted.current = false;
+      if (retryStreamRef.current) { 
+        retryStreamRef.current.getTracks().forEach(t => t.stop()); 
+        retryStreamRef.current = null; 
+      }
       if (stream) stream.getTracks().forEach((track) => track.stop());
       if (videoRef.current) videoRef.current.srcObject = null;
     };
@@ -150,8 +161,10 @@ export default function FaceRecognizer({ authUser }) {
     ).filter(Boolean);
 
     if (!labeledFaceDescriptors.length) {
-      setMessage("No labeled faces found ❌");
-      setFinished(true);
+      if (isMounted.current) {
+        setMessage("No labeled faces found ❌");
+        setFinished(true);
+      }
       return;
     }
 
@@ -199,22 +212,28 @@ export default function FaceRecognizer({ authUser }) {
         box.y - 8
       );
  
-      setMessage(`Detected: ${label}`);
-      setConfidence(confidenceScore);
+      if (isMounted.current) {
+        setMessage(`Detected: ${label}`);
+        setConfidence(confidenceScore);
 
-      if (label !== "Unknown") {
-        const person = labels.find((l) => l.name === label);
-        setDetectedPerson(person || null);
-      } else {
-        setDetectedPerson(null);
+        if (label !== "Unknown") {
+          const person = labels.find((l) => l.name === label);
+          setDetectedPerson(person || null);
+        } else {
+          setDetectedPerson(null);
+        }
       }
     } else {
-      setMessage("No face detected");
-      setDetectedPerson(null);
-      setConfidence(0);
+      if (isMounted.current) {
+        setMessage("No face detected");
+        setDetectedPerson(null);
+        setConfidence(0);
+      }
     }
 
-    setFinished(true);
+    if (isMounted.current) {
+      setFinished(true);
+    }
   };
 
   useEffect(() => {
