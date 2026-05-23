@@ -3,8 +3,11 @@ import { connectDb } from "@/lib/mongodb";
 import { getUserProfile } from "@/lib/firebase-admin";
 import { jsonSuccess } from "@/lib/api-response";
 import { z } from "zod";
-import { withErrorHandler, authenticateRequest } from "@/lib/error-handler";
+import { withErrorHandler } from "@/lib/error-handler";
+import { requireAuth } from "@/lib/rbac";
 import { ValidationError, ForbiddenError } from "@/lib/errors";
+
+export const dynamic = "force-dynamic";
 
 const settingsSchema = z
   .object({
@@ -95,7 +98,7 @@ const settingsSchema = z
   .strict();
 
 export const PATCH = withErrorHandler(async (request) => {
-  const decodedToken = await authenticateRequest(request);
+  const decodedToken = await requireAuth(request);
 
   const body = await request.json();
   const parsed = settingsSchema.safeParse(body);
@@ -141,9 +144,13 @@ export const PATCH = withErrorHandler(async (request) => {
     { upsert: true }
   );
 
-  console.log(
-    `[Audit Log] Settings updated successfully for target user: ${targetUserId} by operator: ${decodedToken.uid} (Role: ${isOperatorAdmin ? "admin" : "owner"})`
-  );
+  // FIX: Replaced unstructured console.log with a professional Winston audit block
+  console.info({
+    message: "User settings profiles modified successfully",
+    targetUserId,
+    operatorId: decodedToken.uid,
+    operatorRole: isOperatorAdmin ? "admin" : "owner"
+  });
 
   return NextResponse.json({ message: "Settings saved successfully" });
 });

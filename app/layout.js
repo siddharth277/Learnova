@@ -8,13 +8,14 @@ import { Toaster } from "react-hot-toast";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import ErrorBoundary from "@/components/ErrorBoundary"; // Imported ErrorBoundary
 import LearnovaChatbot from "@/components/ChatBot";
 import ClientLayout from "@/components/ClientLayout";
 import Footer from "@/components/Footer";
 import PageTransition from "@/components/PageTransition";
 import ScrollToTop from "@/components/ScrollToTop";
 import BackToTop from "@/components/BackToTop";
-import CursorGlow from "@/components/CursorGlow";
+import OfflineIndicator from "@/components/OfflineIndicator";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -235,8 +236,7 @@ export default function RootLayout({ children }) {
       <body
         className={`font-sans ${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground min-h-screen transition-colors duration-300`}
       >
-          <CursorGlow />
-          <div id="cursor-glow"></div>
+          {/* Cursor glow removed per UX preference */}
           
         <ThemeProvider>
           <AuthProvider>
@@ -246,9 +246,11 @@ export default function RootLayout({ children }) {
 
                 <ScrollToTop />
 
-                {/* Chatbot injected globally */}
+                {/* Chatbot safely isolated inside ErrorBoundary */}
                 <div className="z-50">
-                  <LearnovaChatbot />
+                  <ErrorBoundary>
+                    <LearnovaChatbot />
+                  </ErrorBoundary>
                 </div>
 
                 <Footer />
@@ -262,6 +264,7 @@ export default function RootLayout({ children }) {
                     style: { fontWeight: 600 },
                   }}
                 />
+                <OfflineIndicator />
               </Suspense>
             </NotificationProvider>
           </AuthProvider>

@@ -193,21 +193,18 @@ describe("POST /api/groq - Security, Authentication, Rate Limiting, and Timeout 
     });
 
     // Mock MongoDB database responses
-    let storedTimestamps = [];
-    const mockFindOne = jest.fn().mockImplementation(async () => {
-      return { userId: "user-mongo-rate-limit-test", timestamps: storedTimestamps };
-    });
-    const mockUpdateOne = jest.fn().mockImplementation(async (query, update) => {
-      if (update.$set && update.$set.timestamps) {
-        storedTimestamps = update.$set.timestamps;
+    let storedRequests = [];
+    const mockFindOneAndUpdate = jest.fn().mockImplementation(async (query, update) => {
+      if (update.$push && update.$push.requests) {
+        storedRequests.push(...update.$push.requests.$each);
       }
-      return { acknowledged: true };
+      return { requests: storedRequests };
     });
 
     connectDb.mockResolvedValue({
       collection: jest.fn().mockReturnValue({
-        findOne: mockFindOne,
-        updateOne: mockUpdateOne,
+        findOneAndUpdate: mockFindOneAndUpdate,
+        createIndex: jest.fn(),
       }),
     });
 
@@ -219,8 +216,7 @@ describe("POST /api/groq - Security, Authentication, Rate Limiting, and Timeout 
       );
       const res = await POST(req);
       expect(res.status).toBe(200);
-      expect(mockFindOne).toHaveBeenCalled();
-      expect(mockUpdateOne).toHaveBeenCalled();
+      expect(mockFindOneAndUpdate).toHaveBeenCalled();
     }
 
     // The 11th request must be rate limited (429)

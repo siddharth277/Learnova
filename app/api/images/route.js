@@ -1,51 +1,27 @@
 import { NextResponse } from "next/server";
 import { connectDb } from "@/lib/mongodb";
-import { verifyFirebaseToken } from "@/lib/firebase-admin";
-import { ObjectId } from "mongodb";
-
-export async function GET(request) {
-  try {
+import { requireAuth } from "@/lib/rbac";
+import { withErrorHandler } from "@/lib/error-handler";
+import { AppError, ValidationError, NotFoundError } from "@/lib/errors";
+export const GET = withErrorHandler(async (request) => {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
     if (!id) {
-      return NextResponse.json(
-        { error: "Missing user id parameter" },
-        { status: 400 }
-      );
+      throw new ValidationError("Missing user id parameter");
     }
 
-    let token = null;
-
-    const authorization = request.headers.get("authorization");
-    if (authorization?.startsWith("Bearer ")) {
-      token = authorization.slice(7);
-    }
-
-    if (!token) {
-      token = request.cookies.get("authToken")?.value;
-    }
-
-    const decodedToken = await verifyFirebaseToken(token);
-
-    if (!decodedToken.valid) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    await requireAuth(request);
 
     const db = await connectDb();
     const users = db.collection("users");
 
+    const { ObjectId } = require("mongodb");
     let objectId;
     try {
       objectId = new ObjectId(id);
     } catch {
-      return NextResponse.json(
-        { error: "Invalid user id" },
-        { status: 400 }
-      );
+      throw new ValidationError("Invalid user id");
     }
 
     const user = await users.findOne(
@@ -54,19 +30,12 @@ export async function GET(request) {
     );
 
     if (!user || !user.image) {
-      return NextResponse.json(
-        { error: "Image not found" },
-        { status: 404 }
-      );
+      throw new NotFoundError("Image not found");
     }
 
     const imageResponse = await fetch(user.image);
-
     if (!imageResponse.ok) {
-      return NextResponse.json(
-        { error: "Failed to fetch image" },
-        { status: 502 }
-      );
+      throw new AppError("Failed to fetch image", 502);
     }
 
     const imageBuffer = await imageResponse.arrayBuffer();
@@ -76,15 +45,7 @@ export async function GET(request) {
       headers: {
         "Content-Type": imageResponse.headers.get("content-type") || "image/jpeg",
         "Cache-Control": "no-store, no-cache, must-revalidate",
-        "Content-Security-Policy": "default-src 'none'; img-src 'self'",
         "X-Content-Type-Options": "nosniff",
       },
     });
-  } catch (error) {
-    console.error("Image proxy error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
-}
+});

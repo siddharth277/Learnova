@@ -125,8 +125,16 @@ async function verifyIdToken(token) {
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
 
-  // Retrieve cookies set by the client after successful Firebase sign-in
-  const authToken = request.cookies.get("authToken")?.value;
+  // Retrieve token from Authorization header or cookies
+  let authToken = null;
+  const authorization = request.headers.get("authorization");
+  if (authorization?.startsWith("Bearer ")) {
+    authToken = authorization.split(" ")[1];
+  }
+  if (!authToken) {
+    authToken = request.cookies.get("authToken")?.value;
+  }
+  
   const userRole = request.cookies.get("userRole")?.value;
 
   // Cryptographically verify the token — decoding alone is not sufficient
@@ -157,6 +165,9 @@ export async function middleware(request) {
   if (matchedDashboard) {
     // Not logged in or invalid token -> redirect to /auth
     if (!isTokenValid) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
       return NextResponse.redirect(new URL("/auth", request.url));
     }
 
@@ -167,6 +178,9 @@ export async function middleware(request) {
 
     // Role mismatch -> redirect to their appropriate dashboard or profile
     if (userRole !== matchedDashboard.role) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "Forbidden: Role mismatch" }, { status: 403 });
+      }
       const correctDashboard = protectedDashboards.find((d) => d.role === userRole);
       const redirectTarget = correctDashboard ? correctDashboard.defaultPath : "/profile";
       return NextResponse.redirect(new URL(redirectTarget, request.url));
