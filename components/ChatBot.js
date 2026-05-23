@@ -4,7 +4,6 @@ import React, {
   useState,
   useRef,
   useEffect,
-  useMemo,
   useCallback,
 } from "react";
 
@@ -22,14 +21,10 @@ import {
   Mail,
   Phone,
   ExternalLink,
+  X,
 } from "lucide-react";
 
 import ReactMarkdown from "react-markdown";
-
-/**
- * react-window v2 import
- */
-import { List } from "react-window";
 
 import { CONTACT_INFO } from "../constants/contact";
 
@@ -97,30 +92,28 @@ const suggestedQuestions = {
 };
 
 const themeClasses = {
-  border: "border-slate-800",
-
   message: {
-    bot: "bg-slate-800 text-slate-100",
+    bot: "bg-white border border-slate-200 text-slate-800",
 
     user:
-      "bg-gradient-to-r from-purple-600 to-indigo-600 text-white",
+      "bg-gradient-to-r from-indigo-600 to-purple-600 text-white",
 
     avatar: {
-      bot: "bg-slate-700 text-purple-300",
+      bot: "bg-slate-100 text-slate-700",
 
       user:
-        "bg-gradient-to-r from-purple-600 to-indigo-600 text-white",
+        "bg-gradient-to-r from-indigo-600 to-purple-600 text-white",
     },
   },
 
   categoryButton:
-    "bg-slate-800 text-slate-300 hover:bg-slate-700",
+    "bg-slate-100 text-slate-700 hover:bg-slate-200",
 
   categoryButtonActive:
-    "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg",
+    "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md",
 
   suggestion:
-    "bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700",
+    "bg-white border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 text-slate-700",
 };
 
 const markdownComponents = {
@@ -131,92 +124,84 @@ const markdownComponents = {
   ),
 
   strong: ({ children }) => (
-    <strong className="font-semibold text-purple-300">
+    <strong className="font-semibold text-indigo-600">
       {children}
     </strong>
   ),
 
   code: ({ children }) => (
-    <code className="bg-slate-900 px-1 py-0.5 rounded text-pink-300 text-xs">
+    <code className="bg-slate-100 text-pink-600 px-1 py-0.5 rounded text-xs">
       {children}
     </code>
   ),
 };
 
-const MessageRow = ({
-  index,
-  style,
-  data,
+const MessageBubble = ({
+  message,
 }) => {
-  const message =
-    data.messages[index];
+  const isBot =
+    message.role === "assistant";
 
   return (
     <div
-      style={style}
-      className="px-3 py-2"
+      className={`flex ${
+        isBot
+          ? "justify-start"
+          : "justify-end"
+      }`}
     >
       <div
-        className={`flex ${
-          message.role === "assistant"
-            ? "justify-start"
-            : "justify-end"
+        className={`flex items-end gap-2 max-w-[90%] sm:max-w-[75%] ${
+          isBot
+            ? "flex-row"
+            : "flex-row-reverse"
         }`}
       >
+        {/* Avatar */}
         <div
-          className={`flex max-w-sm lg:max-w-md gap-2 ${
-            message.role === "assistant"
-              ? "flex-row"
-              : "flex-row-reverse"
+          className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+            isBot
+              ? themeClasses.message.avatar.bot
+              : themeClasses.message.avatar.user
           }`}
         >
-          <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-              message.role === "assistant"
-                ? themeClasses.message.avatar.bot
-                : themeClasses.message.avatar.user
-            }`}
-          >
-            {message.role ===
-            "assistant" ? (
-              <Bot size={16} />
-            ) : (
-              <User size={16} />
-            )}
-          </div>
+          {isBot ? (
+            <Bot size={16} />
+          ) : (
+            <User size={16} />
+          )}
+        </div>
 
-          <div
-            className={`px-4 py-3 rounded-2xl shadow-sm ${
-              message.role ===
-              "assistant"
-                ? themeClasses.message.bot
-                : themeClasses.message.user
-            }`}
-          >
-            {message.role ===
-            "assistant" ? (
-              <ReactMarkdown
-                components={
-                  markdownComponents
-                }
-              >
-                {message.content}
-              </ReactMarkdown>
-            ) : (
-              <p className="text-sm whitespace-pre-line leading-relaxed">
-                {message.content}
-              </p>
-            )}
-
-            <p className="text-xs mt-2 opacity-70">
-              {new Date(
-                message.timestamp
-              ).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+        {/* Bubble */}
+        <div
+          className={`px-4 py-3 rounded-2xl shadow-sm ${
+            isBot
+              ? themeClasses.message.bot
+              : themeClasses.message.user
+          }`}
+        >
+          {isBot ? (
+            <ReactMarkdown
+              components={
+                markdownComponents
+              }
+            >
+              {message.content}
+            </ReactMarkdown>
+          ) : (
+            <p className="text-sm whitespace-pre-wrap leading-relaxed">
+              {message.content}
             </p>
-          </div>
+          )}
+
+          <p className="text-[11px] opacity-70 mt-2">
+            {new Date(
+              message.timestamp
+            ).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </p>
         </div>
       </div>
     </div>
@@ -230,7 +215,7 @@ const LearnovaChatbot = () => {
         id: 1,
         role: "assistant",
         content:
-          "Hello! I am **Learnova AI**, your learning companion. Ask me anything to get started.",
+          "Hello! I am **Nova AI**, your Learnova assistant. Ask me anything.",
         timestamp: Date.now(),
       },
     ]);
@@ -249,23 +234,19 @@ const LearnovaChatbot = () => {
 
   const textareaRef = useRef(null);
 
-  const listRef = useRef(null);
+  const messagesEndRef =
+    useRef(null);
 
-  // Auto-scroll
+  // Auto scroll
   useEffect(() => {
-    if (listRef.current) {
-      try {
-        listRef.current.scrollToRow({
-          index:
-            messages.length - 1,
-        });
-      } catch (err) {
-        console.error(err);
+    messagesEndRef.current?.scrollIntoView(
+      {
+        behavior: "smooth",
       }
-    }
+    );
   }, [messages]);
 
-  // Check API availability
+  // API status
   useEffect(() => {
     let mounted = true;
 
@@ -287,6 +268,7 @@ const LearnovaChatbot = () => {
     };
   }, []);
 
+  // Resize textarea
   const handleInputChange = (
     e
   ) => {
@@ -306,6 +288,7 @@ const LearnovaChatbot = () => {
     }
   };
 
+  // Send message
   const handleSendMessage =
     useCallback(
       async (e) => {
@@ -422,51 +405,47 @@ const LearnovaChatbot = () => {
       ]
     );
 
-  const itemData = useMemo(
-    () => ({
-      messages,
-    }),
-    [messages]
-  );
-
   return (
-    <div className="flex flex-col h-screen w-full max-w-4xl mx-auto bg-slate-950 text-white border-x border-slate-800">
+    <div className="flex flex-col h-[100dvh] w-full max-w-4xl mx-auto bg-slate-50 border-x border-slate-200">
 
       {/* Header */}
-      <header className="flex items-center justify-between px-4 py-4 border-b border-slate-800 bg-slate-900/80 backdrop-blur-xl">
+      <header className="flex items-center justify-between px-5 py-4 bg-white border-b border-slate-200">
 
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600">
+
+          <div className="p-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
             <Sparkles size={18} />
           </div>
 
           <div>
-            <h1 className="font-bold text-lg">
+            <h1 className="font-bold text-lg text-slate-800">
               Nova AI
             </h1>
 
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500">
               Learnova Assistant
             </p>
           </div>
         </div>
 
         {hasApiKey ? (
-          <span className="flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+          <div className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">
             <CheckCircle2 size={12} />
             Live
-          </span>
+          </div>
         ) : (
-          <span className="flex items-center gap-1 text-xs text-amber-400 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
+          <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-100 px-3 py-1 rounded-full">
             <AlertCircle size={12} />
             Sandbox
-          </span>
+          </div>
         )}
       </header>
 
       {/* Categories */}
-      <div className="p-3 border-b border-slate-800 overflow-x-auto">
-        <div className="flex gap-2">
+      <div className="px-4 py-3 bg-white border-b border-slate-200 overflow-x-auto">
+
+        <div className="flex gap-2 min-w-max">
+
           {categories.map(
             ({
               id,
@@ -480,7 +459,7 @@ const LearnovaChatbot = () => {
                     id
                   )
                 }
-                className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs transition-all whitespace-nowrap ${
+                className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs transition-all ${
                   currentCategory === id
                     ? themeClasses.categoryButtonActive
                     : themeClasses.categoryButton
@@ -495,31 +474,22 @@ const LearnovaChatbot = () => {
       </div>
 
       {/* Messages */}
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
 
-        <List
-          ref={listRef}
-          style={{
-            height: 500,
-            width: "100%",
-          }}
-          rowCount={
-            messages.length
-          }
-          rowHeight={120}
-          rowComponent={
-            MessageRow
-          }
-          rowProps={{
-            data: itemData,
-          }}
-        />
+        {messages.map(
+          (message) => (
+            <MessageBubble
+              key={message.id}
+              message={message}
+            />
+          )
+        )}
 
         {/* Suggestions */}
         {messages.length === 1 && (
-          <div className="px-4 pb-4 space-y-2">
+          <div className="space-y-2 pt-2">
 
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-slate-500">
               Suggested Questions
             </p>
 
@@ -537,7 +507,7 @@ const LearnovaChatbot = () => {
                       question
                     )
                   }
-                  className={`block w-full text-left text-sm px-3 py-2 rounded-lg transition-all ${themeClasses.suggestion}`}
+                  className={`block w-full text-left text-sm px-4 py-3 rounded-xl transition-all ${themeClasses.suggestion}`}
                 >
                   {question}
                 </button>
@@ -548,45 +518,45 @@ const LearnovaChatbot = () => {
 
         {/* Loading */}
         {isLoading && (
-          <div className="px-4 py-3">
-            <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 w-fit">
+          <div className="flex items-center gap-2">
 
-              <div className="flex gap-1">
-                <span className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"></span>
+            <div className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center">
+              <Bot size={16} />
+            </div>
 
-                <span
-                  className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"
-                  style={{
-                    animationDelay:
-                      "0.15s",
-                  }}
-                ></span>
+            <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3 flex gap-1">
+              <span className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce"></span>
 
-                <span
-                  className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"
-                  style={{
-                    animationDelay:
-                      "0.3s",
-                  }}
-                ></span>
-              </div>
+              <span
+                className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce"
+                style={{
+                  animationDelay:
+                    "0.15s",
+                }}
+              ></span>
 
-              <span className="text-xs text-slate-400">
-                Nova is thinking...
-              </span>
+              <span
+                className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce"
+                style={{
+                  animationDelay:
+                    "0.3s",
+                }}
+              ></span>
             </div>
           </div>
         )}
+
+        <div ref={messagesEndRef} />
       </main>
 
-      {/* Footer */}
-      <div className="px-4 py-2 border-t border-slate-800 bg-slate-900/70">
+      {/* Footer Links */}
+      <div className="px-4 py-2 bg-white border-t border-slate-200">
 
         <div className="flex justify-center gap-4 text-xs">
 
           <a
             href={`mailto:${CONTACT_INFO.email}`}
-            className="flex items-center gap-1 text-blue-400 hover:underline"
+            className="flex items-center gap-1 text-blue-600 hover:underline"
           >
             <Mail size={12} />
             Email
@@ -594,7 +564,7 @@ const LearnovaChatbot = () => {
 
           <a
             href={`tel:${CONTACT_INFO.phone}`}
-            className="flex items-center gap-1 text-green-400 hover:underline"
+            className="flex items-center gap-1 text-green-600 hover:underline"
           >
             <Phone size={12} />
             Call
@@ -604,7 +574,7 @@ const LearnovaChatbot = () => {
             href={CONTACT_INFO.demo}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 text-purple-400 hover:underline"
+            className="flex items-center gap-1 text-purple-600 hover:underline"
           >
             <ExternalLink size={12} />
             Demo
@@ -613,13 +583,13 @@ const LearnovaChatbot = () => {
       </div>
 
       {/* Input */}
-      <footer className="p-4 border-t border-slate-800 bg-slate-900/90">
+      <footer className="p-4 bg-white border-t border-slate-200">
 
         <form
           onSubmit={
             handleSendMessage
           }
-          className="flex items-end gap-2 bg-slate-800 border border-slate-700 rounded-xl p-2"
+          className="flex items-end gap-2 bg-slate-100 border border-slate-200 rounded-2xl p-2"
         >
           <textarea
             ref={textareaRef}
@@ -648,27 +618,24 @@ const LearnovaChatbot = () => {
                   currentCategory
               )?.label
             }...`}
-            className="flex-1 bg-transparent outline-none resize-none text-sm text-slate-200 placeholder-slate-500 max-h-32"
+            className="flex-1 bg-transparent resize-none outline-none text-sm text-slate-700 placeholder-slate-400 max-h-32 px-2 py-2"
           />
 
           <button
             type="submit"
-            disabled={
-              !inputMessage.trim() ||
-              isLoading
-            }
-            className={`p-3 rounded-lg transition-all ${
-              inputMessage.trim() &&
-              !isLoading
-                ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:scale-105"
-                : "bg-slate-700 text-slate-500 cursor-not-allowed"
+            disabled={!inputMessage.trim() || isLoading}
+            aria-label="Send message"
+            className={`p-2.5 rounded-lg transition-all ${
+              inputMessage.trim() && !isLoading
+                ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm"
+                : "bg-slate-100 text-slate-400 cursor-not-allowed"
             }`}
           >
             <Send size={16} />
           </button>
         </form>
 
-        <p className="text-[11px] text-center text-slate-500 mt-2">
+        <p className="text-[11px] text-center text-slate-400 mt-2">
           Powered by Groq API
         </p>
       </footer>
