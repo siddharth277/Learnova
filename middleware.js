@@ -50,18 +50,13 @@ export async function middleware(request) {
                  !pathname.startsWith("/api") && 
                  !pathname.match(/\.(?:png|jpg|jpeg|gif|svg|ico|css|js|woff2?|json)$/);
 
-  let nonce;
-  let contentSecurityPolicyHeaderValue;
+  let csp;
 
   if (isPage) {
-    // Generate a cryptographic nonce (base-64 encoded UUID)
-    nonce = btoa(crypto.randomUUID());
-    
-    // Construct the CSP string using the generated nonce
-    const csp = [
+    csp = [
       "default-src 'self'",
-      `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://apis.google.com https://www.gstatic.com`,
-      `style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com`,
+      `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com`,
+      `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.public.blob.vercel-storage.com https://github.com",
       "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebase.io https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.public.blob.vercel-storage.com https://api.emailjs.com",
@@ -73,15 +68,9 @@ export async function middleware(request) {
       "form-action 'self'",
       "upgrade-insecure-requests",
     ].join("; ");
-
-    contentSecurityPolicyHeaderValue = csp;
   }
 
-  // Set standard headers on request so Next.js can read the x-nonce
   const requestHeaders = new Headers(request.headers);
-  if (isPage) {
-    requestHeaders.set("x-nonce", nonce);
-  }
 
   // Retrieve token from Authorization header or cookies
   let authToken = null;
@@ -210,7 +199,7 @@ export async function middleware(request) {
   });
 
   if (isPage) {
-    response.headers.set("Content-Security-Policy", contentSecurityPolicyHeaderValue);
+    response.headers.set("Content-Security-Policy", csp);
   }
 
   return response;

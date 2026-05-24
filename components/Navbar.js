@@ -19,6 +19,7 @@ import { useTheme } from "next-themes";
 
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useTranslation } from "react-i18next";
+import "@/lib/i18n";
 
 const languageMap = {
   "English": "en",
