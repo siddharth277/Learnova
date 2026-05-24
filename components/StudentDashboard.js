@@ -69,13 +69,13 @@ const StudentDashboard = () => {
   const [gamificationData, setGamificationData] = useState(null);
   const [viewMode, setViewMode] = useState("heatmap");
 
-  // Mock attendance stats
-  const attendanceStats = {
-    present: 18,
-    absent: 2,
-    late: 1,
-    percentage: 92,
-  };
+  // Attendance stats state
+  const [attendanceStats, setAttendanceStats] = useState({
+    present: 0,
+    absent: 0,
+    late: 0,
+    percentage: 0,
+  });
 
   const attendancePerformance = {
     attendancePercentage: attendanceStats.percentage,
@@ -140,6 +140,14 @@ const StudentDashboard = () => {
     const timer = setInterval(updateDashboard, 1000);
 
     setRecentActivity(mockRecentActivity);
+    
+    // Initialize mock stats for now
+    setAttendanceStats({
+      present: 18,
+      absent: 2,
+      late: 1,
+      percentage: 92,
+    });
 
     return () => {
       clearInterval(timer);
