@@ -79,19 +79,23 @@ export const PUT = withErrorHandler(async (request) => {
 
      let result;
   try {
-    result = await db.collection("exceptions").updateOne(
-      { _id: new ObjectId(exceptionId) },
-      {
-        $set: {
-          status: status,
-          comments,
-          reviewedBy: decodedToken.email,
-          approverId: decodedToken.uid,
-          reviewedAt: new Date(),
-          updatedAt: new Date(),
-        },
+      const updateFields = {
+        status: status,
+        reviewedBy: decodedToken.email,
+        approverId: decodedToken.uid,
+        reviewedAt: new Date(),
+        updatedAt: new Date(),
+      };
+      if (comments !== undefined) {
+        updateFields.comments = comments;
       }
-    );
+
+      result = await db.collection("exceptions").updateOne(
+        { _id: new ObjectId(exceptionId) },
+        {
+          $set: updateFields,
+        }
+      );
   } catch (error) {
     throw new AppError("Internal server error", 500);
   }
