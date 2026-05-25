@@ -49,21 +49,21 @@ describe("attendance sync route", () => {
       email: "server@example.com",
     });
 
-    const batch = {
-      set: jest.fn(),
-      commit: jest.fn().mockResolvedValue(undefined),
-    };
+    let transactionGet;
+    let transactionSet;
 
-    const docRef = {
-      get: jest.fn().mockResolvedValue({ exists: false }),
-    };
+    const docRef = {};
 
     const collectionRef = {
       doc: jest.fn(() => docRef),
     };
 
     getFirestore.mockReturnValue({
-      batch: jest.fn(() => batch),
+      runTransaction: jest.fn(async (callback) => {
+        transactionSet = jest.fn();
+        transactionGet = jest.fn().mockResolvedValue({ exists: false });
+        return callback({ get: transactionGet, set: transactionSet });
+      }),
       collection: jest.fn(() => collectionRef),
     });
 
@@ -90,8 +90,8 @@ describe("attendance sync route", () => {
 
     expect(getUserProfile).toHaveBeenCalledWith("user-123");
     expect(collectionRef.doc).toHaveBeenCalledWith(expect.stringMatching(/^user-123_\d{4}-\d{2}-\d{2}$/));
-    expect(docRef.get).toHaveBeenCalledTimes(1);
-    expect(batch.set).toHaveBeenCalledWith(
+    expect(transactionGet).toHaveBeenCalledTimes(1);
+    expect(transactionSet).toHaveBeenCalledWith(
       expect.any(Object),
       expect.objectContaining({
         userId: "user-123",
@@ -113,17 +113,14 @@ describe("attendance sync route", () => {
 
     getUserProfile.mockResolvedValue(null);
 
-    const batch = {
-      set: jest.fn(),
-      commit: jest.fn().mockResolvedValue(undefined),
-    };
-
     const collectionRef = {
       doc: jest.fn(() => ({ get: jest.fn() })),
     };
 
+    const runTransaction = jest.fn();
+
     getFirestore.mockReturnValue({
-      batch: jest.fn(() => batch),
+      runTransaction,
       collection: jest.fn(() => collectionRef),
     });
 
@@ -147,8 +144,7 @@ describe("attendance sync route", () => {
       success: false,
       error: "User profile not found for attendance sync.",
     });
-    expect(batch.set).not.toHaveBeenCalled();
-    expect(batch.commit).not.toHaveBeenCalled();
+    expect(runTransaction).not.toHaveBeenCalled();
   });
 
   test("normalizes confidence scores into the valid range", () => {
