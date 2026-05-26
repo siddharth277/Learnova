@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/rbac";
 import { withErrorHandler } from "@/lib/error-handler";
-import { ValidationError } from "@/lib/errors";
+import { ValidationError, AppError } from "@/lib/errors";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { awardXp, XP_VALUES } from "@/lib/gamification-service";
 import { z } from "zod";
 
@@ -25,7 +26,11 @@ const awardSchema = z.object({
  */
 export const POST = withErrorHandler(async (request) => {
   const { payload: decodedToken } = await requireRole(request, ["student"]);
-
+  const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
+  const rateLimitResult = await checkRateLimit(`gamification_award_${ip}_${decodedToken.uid}`);
+  if (!rateLimitResult.allowed) {
+    throw new AppError("Too many attempts. Please try again later.", 429);
+  }
   const body = await request.json();
 
   const validation = awardSchema.safeParse(body);
