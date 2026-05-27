@@ -1,8 +1,10 @@
 "use client";
 import { Navbar } from "@/components/Navbar";
 import DarkVeil from "@/components/ui-block/DarkVeil";
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { useTheme } from "next-themes";
 import Link from "next/link";
+import { CONTACT_INFO } from '@/constants/contact';
 import {
   Mail,
   Phone,
@@ -15,95 +17,178 @@ import {
   Twitter,
   Linkedin,
   Facebook,
-  Building,
-  Users,
   Sparkles,
 } from "lucide-react";
-
-// EmailJS integration (dummy implementation)
-const emailjs = {
-  sendForm: (serviceId, templateId, form, publicKey) => {
-    return new Promise((resolve, reject) => {
-      // Simulate API call
-      setTimeout(() => {
-        if (Math.random() > 0.1) {
-          // 90% success rate
-          resolve({ status: 200, text: "Message sent successfully!" });
-        } else {
-          reject({ status: 400, text: "Failed to send message" });
-        }
-      }, 2000);
-    });
-  },
-};
+import emailjs from "@emailjs/browser";
 
 export default function Contact() {
-  const [form, setForm] = useState({
-    user_name: "",
-    user_email: "",
-    user_company: "",
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isDark = mounted ? theme === "dark" : true;
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    company: "",
     message: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
-  const formRef = useRef();
+  const [errors, setErrors] = useState({});
+  const [cooldown, setCooldown] = useState(false);
+  const [cooldownTimer, setCooldownTimer] = useState(0);
 
-  const handleChange = (e) => {
-    setForm((currform) => ({
-      ...currform,
-      [e.target.name]: e.target.value,
+  useEffect(() => {
+    let interval; // Store interval reference securely
+    const COOLDOWN_MS = 60 * 1000;
+    const lastSubmit = localStorage.getItem('learnova_contact_last_submit');
+    if (lastSubmit) {
+      const elapsed = Date.now() - parseInt(lastSubmit);
+      const remaining = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+      if (remaining > 0) {
+        setCooldown(true);
+        setCooldownTimer(remaining);
+        interval = setInterval(() => {
+          setCooldownTimer((prev) => {
+            if (prev <= 1) {
+              clearInterval(interval);
+              setCooldown(false);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      }
+    }
+    
+    // CRITICAL FIX: Cleanup function to destroy the interval on component unmount
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, []);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
+
+    setErrors((prev) => ({
+      ...prev,
+      [name]: "",
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setSubmitStatus(null);
+  const validateForm = () => {
+    const newErrors = {};
+    const { name, email, message } = formData;
 
-    try {
-      // EmailJS configuration (dummy values - replace with your actual EmailJS config)
-      await emailjs.sendForm(
-        "service_your_id", // Replace with your EmailJS service ID
-        "template_your_id", // Replace with your EmailJS template ID
-        formRef.current,
-        "your_public_key" // Replace with your EmailJS public key
-      );
-
-      setSubmitStatus({
-        type: "success",
-        message: "Thank you! Your message has been sent successfully.",
-      });
-      setForm({ user_name: "", user_email: "", user_company: "", message: "" });
-    } catch (error) {
-      setSubmitStatus({
-        type: "error",
-        message: "Sorry, something went wrong. Please try again later.",
-      });
-    } finally {
-      setIsSubmitting(false);
+    if (!name.trim() || name.trim().length < 2) {
+      newErrors.name = "Name must be at least 2 characters";
     }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      newErrors.email = "Enter a valid email address";
+    }
+
+    if (!message.trim() || message.trim().length < 10) {
+      newErrors.message = "Message must be at least 10 characters";
+    }
+
+    setErrors(newErrors);
+
+    return Object.keys(newErrors).length === 0;
   };
+
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  const COOLDOWN_MS = 60 * 1000;
+  const lastSubmit = localStorage.getItem('learnova_contact_last_submit');
+  if (lastSubmit && Date.now() - parseInt(lastSubmit) < COOLDOWN_MS) {
+    setSubmitStatus({
+      type: 'error',
+      message: `Please wait ${cooldownTimer} seconds before sending another message.`,
+    });
+    return;
+  }
+
+  if (!validateForm()) {
+    setSubmitStatus({
+      type: "error",
+      message: "Please fix the highlighted fields before submitting.",
+    });
+    return;
+  }
+
+  setIsSubmitting(true);
+  setSubmitStatus(null);
+
+  try {
+    await emailjs.send(
+      process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID,
+      process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID,
+      { ...formData },
+      process.env.NEXT_PUBLIC_EMAILJS_USER_ID
+    );
+
+    setSubmitStatus({
+      type: "success",
+      message: "Thank you! Your message has been sent successfully.",
+    });
+
+    setFormData({
+      name: "",
+      email: "",
+      company: "",
+      message: "",
+    });
+
+    localStorage.setItem('learnova_contact_last_submit', Date.now().toString());
+    setCooldown(true);
+    let seconds = 60;
+    setCooldownTimer(seconds);
+    const interval = setInterval(() => {
+      seconds -= 1;
+      setCooldownTimer(seconds);
+      if (seconds === 0) {
+        clearInterval(interval);
+        setCooldown(false);
+      }
+    }, 1000);
+
+    setErrors({});
+  } catch (error) {
+    setSubmitStatus({
+      type: "error",
+      message: "Sorry, something went wrong. Please try again later.",
+    });
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const contactInfo = [
     {
       icon: Mail,
       label: "Email",
-      value: "hello@learnova.com",
-      href: "mailto:hello@learnova.com",
+      value: CONTACT_INFO.email,
+      href: `mailto:${CONTACT_INFO.email}`,
       gradient: "from-blue-500 to-cyan-500",
     },
     {
       icon: Phone,
       label: "Phone",
-      value: "+91 93102 438XX",
+      value: CONTACT_INFO.phone,
       href: "tel:+919310243800",
       gradient: "from-green-500 to-emerald-500",
     },
     {
       icon: MapPin,
       label: "Address",
-      value: "New Delhi, India",
-      href: "#",
+      value: "Bhopal, India",
       gradient: "from-purple-500 to-pink-500",
     },
   ];
@@ -132,8 +217,8 @@ export default function Contact() {
   return (
     <>
       {/* Background */}
-      <div className="fixed inset-0 -z-10">
-        <DarkVeil />
+      <div className="fixed inset-0 -z-10 bg-background">
+        {isDark && <DarkVeil />}
 
         {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden">
@@ -165,18 +250,18 @@ export default function Contact() {
         {/* Hero Section */}
         <section className="pt-32 pb-16 px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-accent/20 to-purple-500/20 rounded-full border border-accent/30 backdrop-blur-sm mb-6">
-              <MessageCircle className="w-5 h-5 text-accent-foreground mr-2" />
-              <span className="text-accent-foreground font-medium">Get in Touch</span>
+            <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-accent/10 to-purple-500/10 dark:from-accent/20 dark:to-purple-500/20 rounded-full border border-accent/20 dark:border-accent/30 backdrop-blur-sm mb-6">
+              <MessageCircle className="w-5 h-5 text-accent dark:text-accent-foreground mr-2" />
+              <span className="text-accent dark:text-accent-foreground font-medium">Get in Touch</span>
             </div>
 
-            <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
+            <h1 className="text-5xl md:text-6xl font-bold text-foreground dark:text-white mb-6">
               Contact{" "}
               <span className="bg-gradient-to-r from-accent via-purple-400 to-pink-400 bg-clip-text text-transparent">
                 Learnova
               </span>
             </h1>
-            <p className="text-xl md:text-2xl text-gray-300 leading-relaxed max-w-3xl mx-auto">
+            <p className="text-xl md:text-2xl text-muted-foreground leading-relaxed max-w-3xl mx-auto">
               Ready to transform your educational institution? Let's discuss how
               Learnova can streamline your operations and enhance student
               success.
@@ -189,91 +274,102 @@ export default function Contact() {
             <div className="grid lg:grid-cols-2 gap-16">
               {/* Contact Form */}
               <div className="relative">
-                <div className="bg-black/40 backdrop-blur-xl rounded-3xl p-8 border border-white/10 hover:border-accent/30 transition-all duration-500">
+                <div className="bg-card backdrop-blur-xl rounded-3xl p-8 border border-border hover:border-accent/30 transition-all duration-500">
                   <div className="mb-8">
-                    <h2 className="text-3xl font-bold text-white mb-4">
+                    <h2 className="text-3xl font-bold text-foreground mb-4">
                       Send us a Message
                     </h2>
-                    <p className="text-gray-400">
+                    <p className="text-muted-foreground">
                       Fill out the form below and our team will get back to you
                       within 24 hours.
                     </p>
                   </div>
 
-                  <form
-                    ref={formRef}
-                    onSubmit={handleSubmit}
-                    className="space-y-6"
-                  >
+                  <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid md:grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <label className="block text-white font-medium">
+                        <label htmlFor="contact-name" className="block text-foreground font-medium">
                           Full Name *
                         </label>
                         <input
+                          id="contact-name"
                           type="text"
-                          name="user_name"
-                          value={form.user_name}
-                          onChange={handleChange}
+                          name="name"
+                          value={formData.name}
+                          onChange={handleInputChange}
                           placeholder="Enter your full name"
-                          required
-                          className="w-full p-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-all duration-300"
+                          className="w-full p-4 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-all duration-300"
                         />
+                        {errors.name && (
+                          <p className="text-red-400 text-sm mt-1">
+                            {errors.name}
+                          </p>
+                        )}
                       </div>
 
                       <div className="space-y-2">
-                        <label className="block text-white font-medium">
+                        <label htmlFor="contact-email" className="block text-foreground font-medium">
                           Email Address *
                         </label>
                         <input
+                          id="contact-email"
                           type="email"
-                          name="user_email"
-                          value={form.user_email}
-                          onChange={handleChange}
+                          name="email"
+                          value={formData.email}
+                          onChange={handleInputChange}
                           placeholder="you@example.com"
-                          required
-                          className="w-full p-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-all duration-300"
+                          className="w-full p-4 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-all duration-300"
                         />
+                        {errors.email && (
+                          <p className="text-red-400 text-sm mt-1">
+                            {errors.email}
+                          </p>
+                        )}
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <label className="block text-white font-medium">
+                      <label htmlFor="contact-company" className="block text-foreground font-medium">
                         Institution/Company
                       </label>
                       <input
+                        id="contact-company"
                         type="text"
-                        name="user_company"
-                        value={form.user_company}
-                        onChange={handleChange}
+                        name="company"
+                        value={formData.company}
+                        onChange={handleInputChange}
                         placeholder="Your institution or company name"
-                        className="w-full p-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-all duration-300"
+                        className="w-full p-4 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-all duration-300"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <label className="block text-white font-medium">
+                      <label htmlFor="contact-message" className="block text-foreground font-medium">
                         Message *
                       </label>
                       <textarea
+                        id="contact-message"
                         name="message"
-                        value={form.message}
-                        onChange={handleChange}
+                        value={formData.message}
+                        onChange={handleInputChange}
                         rows="5"
                         placeholder="Tell us about your needs and how we can help..."
-                        required
-                        className="w-full p-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-all duration-300 resize-none"
+                        className="w-full p-4 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-all duration-300 resize-none"
                       />
+                      {errors.message && (
+                        <p className="text-red-400 text-sm mt-1">
+                          {errors.message}
+                        </p>
+                      )}
                     </div>
 
                     {/* Submit Status */}
                     {submitStatus && (
                       <div
-                        className={`p-4 rounded-xl flex items-center gap-3 ${
-                          submitStatus.type === "success"
-                            ? "bg-green-500/20 border border-green-500/30 text-green-300"
-                            : "bg-red-500/20 border border-red-500/30 text-red-300"
-                        }`}
+                        className={`p-4 rounded-xl flex items-center gap-3 ${submitStatus.type === "success"
+                          ? "bg-green-500/20 border border-green-500/30 text-green-300"
+                          : "bg-red-500/20 border border-red-500/30 text-red-300"
+                          }`}
                       >
                         {submitStatus.type === "success" ? (
                           <CheckCircle className="w-5 h-5" />
@@ -286,13 +382,18 @@ export default function Contact() {
 
                     <button
                       type="submit"
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || cooldown}
                       className="group w-full bg-gradient-to-r from-accent to-purple-500 text-white py-4 px-6 rounded-xl font-semibold hover:shadow-xl hover:shadow-accent/25 transition-all duration-300 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                     >
                       {isSubmitting ? (
                         <>
                           <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                           Sending...
+                        </>
+                      ) : cooldown ? (
+                        <>
+                          <Clock className="w-5 h-5" />
+                          Please wait {cooldownTimer}s
                         </>
                       ) : (
                         <>
@@ -308,8 +409,8 @@ export default function Contact() {
               {/* Contact Information */}
               <div className="space-y-8">
                 {/* Contact Details */}
-                <div className="bg-black/40 backdrop-blur-xl rounded-3xl p-8 border border-white/10">
-                  <h3 className="text-2xl font-bold text-white mb-6">
+                <div className="bg-card backdrop-blur-xl rounded-3xl p-8 border border-border">
+                  <h3 className="text-2xl font-bold text-foreground mb-6">
                     Get in Touch
                   </h3>
 
@@ -319,16 +420,23 @@ export default function Contact() {
                         <div
                           className={`w-12 h-12 bg-gradient-to-br ${info.gradient} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}
                         >
-                          <info.icon className="w-6 h-6 text-white" />
+                          <info.icon className="w-6 h-6 text-foreground" />
                         </div>
                         <div>
-                          <p className="text-gray-400 text-sm">{info.label}</p>
-                          <a
-                            href={info.href}
-                            className="text-white text-lg font-medium hover:text-accent transition-colors duration-300"
-                          >
-                            {info.value}
-                          </a>
+                          <p className="text-muted-foreground text-sm">{info.label}</p>
+
+                          {info.href ? (
+                            <a
+                              href={info.href}
+                              className="text-foreground text-lg font-medium hover:text-accent transition-colors duration-300"
+                            >
+                              {info.value}
+                            </a>
+                          ) : (
+                            <p className="text-foreground text-lg font-medium">
+                              {info.value}
+                            </p>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -336,32 +444,32 @@ export default function Contact() {
                 </div>
 
                 {/* Business Hours */}
-                <div className="bg-black/40 backdrop-blur-xl rounded-3xl p-8 border border-white/10">
+                <div className="bg-card backdrop-blur-xl rounded-3xl p-8 border border-border">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
-                      <Clock className="w-6 h-6 text-white" />
+                      <Clock className="w-6 h-6 text-foreground" />
                     </div>
-                    <h3 className="text-2xl font-bold text-white">
+                    <h3 className="text-2xl font-bold text-foreground">
                       Business Hours
                     </h3>
                   </div>
 
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Monday - Friday</span>
-                      <span className="text-white font-medium">
+                      <span className="text-muted-foreground">Monday - Friday</span>
+                      <span className="text-foreground font-medium">
                         9:00 AM - 6:00 PM
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Saturday</span>
-                      <span className="text-white font-medium">
+                      <span className="text-muted-foreground">Saturday</span>
+                      <span className="text-foreground font-medium">
                         10:00 AM - 4:00 PM
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Sunday</span>
-                      <span className="text-gray-400">Closed</span>
+                      <span className="text-muted-foreground">Sunday</span>
+                      <span className="text-muted-foreground">Closed</span>
                     </div>
                   </div>
 
@@ -375,8 +483,8 @@ export default function Contact() {
                 </div>
 
                 {/* Social Links */}
-                <div className="bg-black/40 backdrop-blur-xl rounded-3xl p-8 border border-white/10">
-                  <h3 className="text-2xl font-bold text-white mb-6">
+                <div className="bg-card backdrop-blur-xl rounded-3xl p-8 border border-border">
+                  <h3 className="text-2xl font-bold text-foreground mb-6">
                     Follow Us
                   </h3>
 
@@ -385,37 +493,17 @@ export default function Contact() {
                       <Link
                         key={index}
                         href={social.href}
-                        className={`w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-gray-400 ${social.color} transition-all duration-300 hover:scale-110 hover:border-current`}
+                        className={`w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-muted-foreground ${social.color} transition-all duration-300 hover:scale-110 hover:border-current`}
                       >
                         <social.icon className="w-6 h-6" />
                       </Link>
                     ))}
                   </div>
 
-                  <p className="text-gray-400 text-sm mt-4">
+                  <p className="text-muted-foreground text-sm mt-4">
                     Stay updated with our latest features and educational
                     insights.
                   </p>
-                </div>
-
-                {/* Quick Stats */}
-                <div className="bg-gradient-to-br from-accent/10 to-purple-500/10 backdrop-blur-xl rounded-3xl p-8 border border-accent/20">
-                  <h3 className="text-2xl font-bold text-white mb-6">
-                    Why Choose Learnova?
-                  </h3>
-
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="text-center">
-                      <Building className="w-8 h-8 text-accent mx-auto mb-2" />
-                      <div className="text-2xl font-bold text-white">500+</div>
-                      <div className="text-gray-400 text-sm">Institutions</div>
-                    </div>
-                    <div className="text-center">
-                      <Users className="w-8 h-8 text-accent mx-auto mb-2" />
-                      <div className="text-2xl font-bold text-white">100K+</div>
-                      <div className="text-gray-400 text-sm">Students</div>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>

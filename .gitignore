@@ -1,6 +1,15 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ========================================
+# Environment Files
+# ========================================
+# Keep the example, but ignore all actual secrets
+.env
+.env.local
+.env.*.local
+!.env.example
 
-# dependencies
+# ========================================
+# Dependencies & Build
+# ========================================
 /node_modules
 /.pnp
 .pnp.*
@@ -10,32 +19,44 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
-
-# next.js
+# Next.js / Vercel
 /.next/
 /out/
-
-# production
 /build
+.vercel
 
-# misc
-.DS_Store
-*.pem
-
-# debug
+# ========================================
+# Testing & Logs
+# ========================================
+/coverage
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
-.vercel
-
-# typescript
+# ========================================
+# System & IDE
+# ========================================
+.DS_Store
+*.pem
 *.tsbuildinfo
 next-env.d.ts
+
+# ========================================
+# PWA / Service Worker (Auto-generated)
+# ========================================
+/public/sw.js
+/public/sw.js.map
+/public/workbox-*.js
+/public/workbox-*.js.map
+/public/worker-*.js
+/public/worker-*.js.map
+/public/swe-worker-*.js
+/public/swe-worker-*.js.map
+/public/fallback-*.js
+/public/fallback-*.js.map
+/public/sw.d.ts
+/public/workbox-*.d.ts
+/.pwa-cache/
+/sw-cache/
+/workbox-*.json

@@ -1,0 +1,121 @@
+{
+  "name": "Learnova - Smart Student Engagement & Attendance Platform",
+  "short_name": "Learnova",
+  "description": "AI-powered student engagement platform with smart attendance tracking, classroom management, and analytics",
+  "start_url": "/",
+  "theme_color": "#7c3aed",
+  "background_color": "#0f172a",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en-US",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon1.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon1.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/logo-192x192.jpg",
+      "sizes": "192x192",
+      "type": "image/jpg",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/logo-192x192.jpg",
+      "sizes": "192x192",
+      "type": "image/jpg",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/logo-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/logo-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Learnova Dashboard"
+    },
+    {
+      "src": "/screenshots/mobile.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Mobile Experience"
+    }
+  ],
+  "shortcuts": [
+        {
+      "name": "Profile",
+      "short_name": "Profile",
+      "description": "View your profile",
+      "url": "/profile",
+      "icons": [
+        {
+          "src": "/icons/logo-192x192.jpg",
+          "sizes": "192x192",
+          "type": "image/jpg"
+        }
+      ]
+    },
+    {
+      "name": "Activity",
+      "short_name": "Activity",
+      "description": "View activities",
+      "url": "/activity",
+      "icons": [
+        {
+          "src": "/icons/logo-192x192.jpg",
+          "sizes": "192x192",
+          "type": "image/jpg"
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Open your dashboard",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "/icons/logo-192x192.jpg",
+          "sizes": "192x192",
+          "type": "image/jpg"
+        }
+      ]
+    },
+    {
+      "name": "Attendance",
+      "short_name": "Attendance",
+      "description": "Mark attendance",
+      "url": "/attendance",
+      "icons": [
+        {
+          "src": "/icons/logo-192x192.jpg",
+          "sizes": "192x192",
+          "type": "image/jpg"
+        }
+      ]
+    }
+  ]
+}

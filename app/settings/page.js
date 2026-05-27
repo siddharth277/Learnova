@@ -2,21 +2,25 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
+import { useAuthContext } from "@/contexts/AuthContext";
 import SettingsPage from "@/components/settings";
 
 const Settings = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuthContext();
   const router = useRouter();
 
-  // Handle redirect if not logged in
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/auth");
+    if (!authLoading) {
+      if (!user) {
+        // Not logged in → redirect to /auth
+        router.push("/auth");
+      } else if (!user.emailVerified) {
+        // Logged in but not verified → redirect to /verify
+        router.push("/verify");
+      }
     }
   }, [authLoading, user, router]);
 
-  // While checking auth
   if (authLoading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
@@ -26,11 +30,12 @@ const Settings = () => {
       </div>
     );
   }
+  
 
-  // If no user, return nothing (until redirect)
-  if (!user) return null;
+  // Prevent flash before redirect
+  if (!user || !user.emailVerified) return null;
 
-  // ✅ Authenticated
+  // ✅ Authenticated + Verified
   return <SettingsPage />;
 };
 

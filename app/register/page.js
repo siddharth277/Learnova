@@ -2,33 +2,43 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import RegisterPage from "@/components/register";
 
 const Register = () => {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  // Redirect to /auth if not logged in
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/auth");
+    if (!authLoading) {
+      if (!user) {
+        // Not logged in → go to login
+        router.push("/auth");
+      } else if (!user.emailVerified) {
+        // Logged in but not verified → go to verify page
+        router.push("/verify");
+      }
     }
   }, [authLoading, user, router]);
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <span className="text-indigo-300 text-xl animate-pulse">
+      <div className="min-h-screen bg-state-900flex items-center justify-center">
+       <div classNmae="flex flex-col items-center gap-4">
+        <div className="w-10 h-10 border-4 border-indigo-500 
+        border-t-transparent rounded-full animate-spin"></div>
+
+        <p classNmae="text-indigo-300 text-lg font-medium animate-pulse">
           Checking authentication...
-        </span>
+        </p>
+      </div>
       </div>
     );
   }
 
-  if (!user) return null; // Prevent flash before redirect
+  if (!user || !user.emailVerified) return null; // avoid flash before redirect
 
-  // ✅ Authenticated user
+  // ✅ Authenticated + Verified
   return <RegisterPage />;
 };
 
