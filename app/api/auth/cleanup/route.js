@@ -12,7 +12,8 @@ export const runtime = "nodejs";
  * that cannot be deleted client-side due to re-authentication requirements.
  * 
  * Called when client-side profile creation fails and the auth account
- * needs to be cleaned up to prevent orphaned accounts.
+ * needs to be cleaned up. Access is strictly authenticated to ensure a user
+ * can only delete their own freshly created/orphaned account (CWE-306).
  */
 export const POST = withErrorHandler(async (request) => {
   // 1. Authenticate request via Firebase token first to prevent unauthenticated/arbitrary deletion
