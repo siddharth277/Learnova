@@ -17,6 +17,10 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const normalizeText = (value) =>
   typeof value === "string" ? value.trim() : "";
 
+/**
+ * Escapes HTML characters inside input values to prevent Stored XSS
+ * vulnerabilities in fields that are stored and rendered (CWE-79).
+ */
 const sanitizeHtml = (text) => {
   if (typeof text !== "string") return "";
   return text
