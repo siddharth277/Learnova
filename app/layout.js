@@ -16,11 +16,16 @@ import { siteStructuredData } from "@/lib/seo/siteStructuredData";
 import NextTopLoader from "nextjs-toploader";
 import RouteAnnouncer from "@/components/RouteAnnouncer";
 
-// Validate environment variables at startup (server-side only)
+// Validate environment variables at startup (server-side only).
+// Local development should keep public pages renderable for contributor onboarding,
+// while production still fails fast when required services are not configured.
 if (typeof window === "undefined") {
   try {
     const { validateEnv } = require("@/lib/env");
-    validateEnv();
+    validateEnv({
+      throwOnError: process.env.NODE_ENV === "production",
+      warnOnce: true,
+    });
   } catch (error) {
     console.error("Environment validation failed:", error.message);
     throw error;
