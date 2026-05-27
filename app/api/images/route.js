@@ -1,101 +1,68 @@
 import { NextResponse } from "next/server";
-import { connectDb } from "@/lib/mongodb";
 import { requireAuth } from "@/lib/rbac";
 import { withErrorHandler } from "@/lib/error-handler";
-import { AppError, ValidationError, NotFoundError } from "@/lib/errors";
-import { put } from "@vercel/blob";
-import { randomUUID } from "crypto";
-import { z } from "zod";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { del, put } from "@vercel/blob";
+import {
+  extractImageFileFromFormData,
+  fetchAndValidateImage,
+  getImageResponseHeaders,
+  getUserImageFromDb,
+  updateUserImageInDb,
+  uploadAvatarToBlob,
+} from "@/lib/images/imagesService";
 
 export const dynamic = "force-dynamic";
 
-const getImageSchema = z.object({
-  id: z.string().min(1, "Missing user id parameter"),
-});
-
 export const GET = withErrorHandler(async (request) => {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
 
-    const validation = getImageSchema.safeParse({ id });
-    if (!validation.success) {
-      const firstError = validation.error.issues?.[0]?.message || "Invalid request parameter";
-      throw new ValidationError(firstError);
-    }
+  await requireAuth(request);
 
-    await requireAuth(request);
+  const imageUrl = await getUserImageFromDb({ id });
+  const { imageBuffer, contentType } = await fetchAndValidateImage(imageUrl);
 
-    const db = await connectDb();
-    const users = db.collection("users");
-
-    const { ObjectId } = require("mongodb");
-    let objectId;
-    try {
-      objectId = new ObjectId(id);
-    } catch {
-      throw new ValidationError("Invalid user id");
-    }
-
-    const user = await users.findOne(
-      { _id: objectId },
-      { projection: { image: 1 } }
-    );
-
-    if (!user || !user.image) {
-      throw new NotFoundError("Image not found");
-    }
-
-    let parsedUrl;
-    try {
-      parsedUrl = new URL(user.image);
-    } catch {
-      throw new ValidationError("Invalid image URL");
-    }
-
-    if (parsedUrl.protocol !== "https:") {
-      throw new ValidationError("Image URL must use HTTPS");
-    }
-
-    const allowedImageHosts = [
-      "public.blob.vercel-storage.com",
-      "lh3.googleusercontent.com",
-    ];
-
-    const hostOk = allowedImageHosts.some(
-      (h) => parsedUrl.hostname === h || parsedUrl.hostname.endsWith("." + h)
-    );
-
-    if (!hostOk) {
-      throw new ValidationError("Image source not allowed");
-    }
-
-    const imageResponse = await fetch(user.image);
-    if (!imageResponse.ok) {
-      throw new AppError("Failed to fetch image", 502);
-    }
-
-    const contentType = imageResponse.headers.get("content-type") || "";
-    if (!contentType.startsWith("image/")) {
-      throw new AppError("Response is not an image", 502);
-    }
-
-    const imageBuffer = await imageResponse.arrayBuffer();
-
-    return new NextResponse(imageBuffer, {
-      status: 200,
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-        "X-Content-Type-Options": "nosniff",
-      },
-    });
+  return new NextResponse(imageBuffer, {
+    status: 200,
+    headers: getImageResponseHeaders(contentType),
+  });
 });
 
 export const POST = withErrorHandler(async (request) => {
-    const decodedToken = await requireAuth(request);
+  const decodedToken = await requireAuth(request);
+  const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
+  const rateLimitResult = await checkRateLimit(`images_post_${ip}_${decodedToken.uid}`);
+  if (!rateLimitResult.allowed) {
+    const { AppError } = require("@/lib/errors");
+    throw new AppError("Too many attempts. Please try again later.", 429);
+  }
+  const formData = await request.formData();
+  const file = extractImageFileFromFormData(formData);
 
-    const formData = await request.formData();
-    const file = formData.get("file");
+  const { blobUrl } = await uploadAvatarToBlob({
+    file,
+    uid: decodedToken.uid,
+  });
+
+  await updateUserImageInDb({
+    firebaseUid: decodedToken.uid,
+    imageUrl: blobUrl,
+  });
+    const rawFaceDescriptor = formData.get("faceDescriptor");
+    let faceDescriptor = null;
+    if (rawFaceDescriptor) {
+      if (typeof rawFaceDescriptor !== "string" || rawFaceDescriptor.length > 20000) {
+        throw new ValidationError("Face descriptor payload too large");
+      }
+      try {
+        const parsed = JSON.parse(rawFaceDescriptor);
+        const faceDescriptorSchema = z.array(z.number()).length(128);
+        faceDescriptor = faceDescriptorSchema.parse(parsed);
+      } catch {
+        throw new ValidationError("Invalid face descriptor format");
+      }
+    }
 
     if (!file || typeof file === "string" || !file.type) {
       throw new ValidationError("File is required and must be a valid file");
@@ -126,10 +93,19 @@ export const POST = withErrorHandler(async (request) => {
     // Update in MongoDB if exists
     const db = await connectDb();
     const users = db.collection("users");
-    await users.updateOne(
-      { firebaseUid: decodedToken.uid },
-      { $set: { image: blob.url } }
-    );
+    const updatePayload = { image: blob.url };
+    if (faceDescriptor) {
+      updatePayload.faceDescriptor = faceDescriptor;
+    }
+    try {
+      await users.updateOne(
+        { firebaseUid: decodedToken.uid },
+        { $set: updatePayload }
+      );
+    } catch (error) {
+      await del(blob.url).catch(() => {});
+      throw error;
+    }
 
-    return NextResponse.json({ success: true, url: blob.url });
+  return NextResponse.json({ success: true, url: blobUrl });
 });

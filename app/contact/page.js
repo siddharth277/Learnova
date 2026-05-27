@@ -20,6 +20,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import emailjs from "@emailjs/browser";
+import toast from "react-hot-toast";
 
 export default function Contact() {
   const { theme } = useTheme();
@@ -37,9 +38,9 @@ export default function Contact() {
   const [errors, setErrors] = useState({});
   const [cooldown, setCooldown] = useState(false);
   const [cooldownTimer, setCooldownTimer] = useState(0);
+  const cooldownIntervalRef = useRef(null);
 
   useEffect(() => {
-    let interval; // Store interval reference securely
     const COOLDOWN_MS = 60 * 1000;
     const lastSubmit = localStorage.getItem('learnova_contact_last_submit');
     if (lastSubmit) {
@@ -48,10 +49,11 @@ export default function Contact() {
       if (remaining > 0) {
         setCooldown(true);
         setCooldownTimer(remaining);
-        interval = setInterval(() => {
+        cooldownIntervalRef.current = setInterval(() => {
           setCooldownTimer((prev) => {
             if (prev <= 1) {
-              clearInterval(interval);
+              clearInterval(cooldownIntervalRef.current);
+              cooldownIntervalRef.current = null;
               setCooldown(false);
               return 0;
             }
@@ -63,7 +65,9 @@ export default function Contact() {
     
     // CRITICAL FIX: Cleanup function to destroy the interval on component unmount
     return () => {
-      if (interval) clearInterval(interval);
+      if (cooldownIntervalRef.current) {
+        clearInterval(cooldownIntervalRef.current);
+      }
     };
   }, []);
 
@@ -102,7 +106,7 @@ export default function Contact() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
+ const handleSubmit = async (e) => {
   e.preventDefault();
 
   const COOLDOWN_MS = 60 * 1000;
@@ -123,6 +127,19 @@ export default function Contact() {
     return;
   }
 
+  // Guard: check EmailJS env variables are configured before attempting send
+  if (
+    !process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID ||
+    !process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID ||
+    !process.env.NEXT_PUBLIC_EMAILJS_USER_ID
+  ) {
+    setSubmitStatus({
+      type: "error",
+      message: `Contact form is currently unavailable. Please reach us directly at ${CONTACT_INFO.email}`,
+    });
+    return;
+  }
+
   setIsSubmitting(true);
   setSubmitStatus(null);
 
@@ -137,7 +154,9 @@ export default function Contact() {
     setSubmitStatus({
       type: "success",
       message: "Thank you! Your message has been sent successfully.",
+      
     });
+    toast.success("Message sent successfully!");
 
     setFormData({
       name: "",
@@ -146,25 +165,14 @@ export default function Contact() {
       message: "",
     });
 
-    localStorage.setItem('learnova_contact_last_submit', Date.now().toString());
-    setCooldown(true);
-    let seconds = 60;
-    setCooldownTimer(seconds);
-    const interval = setInterval(() => {
-      seconds -= 1;
-      setCooldownTimer(seconds);
-      if (seconds === 0) {
-        clearInterval(interval);
-        setCooldown(false);
-      }
-    }, 1000);
-
     setErrors({});
   } catch (error) {
+    console.error("[Contact Form] EmailJS error:", error);
     setSubmitStatus({
       type: "error",
       message: "Sorry, something went wrong. Please try again later.",
     });
+     toast.error("Failed to send message");
   } finally {
     setIsSubmitting(false);
   }
@@ -271,10 +279,10 @@ export default function Contact() {
 
         <div className="px-4 sm:px-6 lg:px-8 pb-20">
           <div className="max-w-7xl mx-auto">
-            <div className="grid lg:grid-cols-2 gap-16">
+            <div className="grid lg:grid-cols-2 gap-16 items-start">
               {/* Contact Form */}
-              <div className="relative">
-                <div className="bg-card backdrop-blur-xl rounded-3xl p-8 border border-border hover:border-accent/30 transition-all duration-500">
+              <div className="relative h-full">
+                <div className="bg-card backdrop-blur-xl rounded-3xl p-8 border border-border hover:border-accent/30 transition-colors duration-500 h-full">
                   <div className="mb-8">
                     <h2 className="text-3xl font-bold text-foreground mb-4">
                       Send us a Message
@@ -286,8 +294,8 @@ export default function Contact() {
                   </div>
 
                   <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="grid md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
+                    <div className="grid md:grid-cols-2 gap-6 items-start">
+                      <div className="space-y-2 flex flex-col">
                         <label htmlFor="contact-name" className="block text-foreground font-medium">
                           Full Name *
                         </label>
@@ -298,16 +306,18 @@ export default function Contact() {
                           value={formData.name}
                           onChange={handleInputChange}
                           placeholder="Enter your full name"
-                          className="w-full p-4 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-all duration-300"
+                          className="w-full p-4 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-colors duration-300"
                         />
-                        {errors.name && (
-                          <p className="text-red-400 text-sm mt-1">
-                            {errors.name}
-                          </p>
-                        )}
+                        <div className="min-h-5">
+                          {errors.name && (
+                            <p className="text-red-400 text-sm mt-1">
+                              {errors.name}
+                            </p>
+                          )}
+                        </div>
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="space-y-2 flex flex-col">
                         <label htmlFor="contact-email" className="block text-foreground font-medium">
                           Email Address *
                         </label>
@@ -318,13 +328,15 @@ export default function Contact() {
                           value={formData.email}
                           onChange={handleInputChange}
                           placeholder="you@example.com"
-                          className="w-full p-4 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-all duration-300"
+                          className="w-full p-4 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-colors duration-300"
                         />
-                        {errors.email && (
-                          <p className="text-red-400 text-sm mt-1">
-                            {errors.email}
-                          </p>
-                        )}
+                        <div className="min-h-5">
+                          {errors.email && (
+                            <p className="text-red-400 text-sm mt-1">
+                              {errors.email}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -339,7 +351,7 @@ export default function Contact() {
                         value={formData.company}
                         onChange={handleInputChange}
                         placeholder="Your institution or company name"
-                        className="w-full p-4 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-all duration-300"
+                        className="w-full p-4 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-colors duration-300"
                       />
                     </div>
 
@@ -354,7 +366,7 @@ export default function Contact() {
                         onChange={handleInputChange}
                         rows="5"
                         placeholder="Tell us about your needs and how we can help..."
-                        className="w-full p-4 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-all duration-300 resize-none"
+                        className="w-full p-4 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-colors duration-300 resize-none"
                       />
                       {errors.message && (
                         <p className="text-red-400 text-sm mt-1">
@@ -383,7 +395,7 @@ export default function Contact() {
                     <button
                       type="submit"
                       disabled={isSubmitting || cooldown}
-                      className="group w-full bg-gradient-to-r from-accent to-purple-500 text-white py-4 px-6 rounded-xl font-semibold hover:shadow-xl hover:shadow-accent/25 transition-all duration-300 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                      className="group w-full bg-gradient-to-r from-accent to-purple-500 text-white py-4 px-6 rounded-xl font-semibold hover:shadow-xl hover:shadow-accent/25 transition-transform duration-300 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                     >
                       {isSubmitting ? (
                         <>
@@ -418,22 +430,22 @@ export default function Contact() {
                     {contactInfo.map((info, index) => (
                       <div key={index} className="group flex items-start gap-4">
                         <div
-                          className={`w-12 h-12 bg-gradient-to-br ${info.gradient} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}
+                          className={`w-12 h-12 shrink-0 bg-gradient-to-br ${info.gradient} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}
                         >
                           <info.icon className="w-6 h-6 text-foreground" />
                         </div>
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <p className="text-muted-foreground text-sm">{info.label}</p>
 
                           {info.href ? (
                             <a
                               href={info.href}
-                              className="text-foreground text-lg font-medium hover:text-accent transition-colors duration-300"
+                              className="text-foreground text-lg font-medium hover:text-accent transition-colors duration-300 break-words"
                             >
                               {info.value}
                             </a>
                           ) : (
-                            <p className="text-foreground text-lg font-medium">
+                            <p className="text-foreground text-lg font-medium break-words">
                               {info.value}
                             </p>
                           )}
@@ -455,21 +467,21 @@ export default function Contact() {
                   </div>
 
                   <div className="space-y-3">
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center gap-4">
                       <span className="text-muted-foreground">Monday - Friday</span>
-                      <span className="text-foreground font-medium">
+                      <span className="text-foreground font-medium text-right whitespace-nowrap">
                         9:00 AM - 6:00 PM
                       </span>
                     </div>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center gap-4">
                       <span className="text-muted-foreground">Saturday</span>
-                      <span className="text-foreground font-medium">
+                      <span className="text-foreground font-medium text-right whitespace-nowrap">
                         10:00 AM - 4:00 PM
                       </span>
                     </div>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center gap-4">
                       <span className="text-muted-foreground">Sunday</span>
-                      <span className="text-muted-foreground">Closed</span>
+                      <span className="text-muted-foreground text-right whitespace-nowrap">Closed</span>
                     </div>
                   </div>
 
@@ -488,12 +500,12 @@ export default function Contact() {
                     Follow Us
                   </h3>
 
-                  <div className="flex gap-4">
+                  <div className="flex gap-4 flex-wrap">
                     {socialLinks.map((social, index) => (
                       <Link
                         key={index}
                         href={social.href}
-                        className={`w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-muted-foreground ${social.color} transition-all duration-300 hover:scale-110 hover:border-current`}
+                        className={`w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-muted-foreground ${social.color} transition-transform duration-300 hover:scale-110 hover:border-current`}
                       >
                         <social.icon className="w-6 h-6" />
                       </Link>

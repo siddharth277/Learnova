@@ -1,6 +1,7 @@
-import { GET, rateLimitMap } from "@/app/api/labels/route";
+import { GET } from "@/app/api/labels/route";
 import { connectDb } from "@/lib/mongodb";
 import { verifyFirebaseToken, getUserProfile } from "@/lib/firebase-admin";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 jest.mock("next/server", () => ({
   NextResponse: {
@@ -23,6 +24,10 @@ jest.mock("@/lib/firebase-admin", () => ({
   getUserProfile: jest.fn(),
 }));
 
+jest.mock("@/lib/rateLimit", () => ({
+  checkRateLimit: jest.fn(),
+}));
+
 describe("GET /api/labels - Security & Authentication Tests", () => {
   let mockToArray;
   let mockLimit;
@@ -31,9 +36,7 @@ describe("GET /api/labels - Security & Authentication Tests", () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    if (rateLimitMap) {
-      rateLimitMap.clear();
-    }
+    checkRateLimit.mockResolvedValue({ allowed: true, remaining: 10 });
 
     verifyFirebaseToken.mockImplementation(async (token) => {
       if (!token || token === "invalid-token") return { valid: false, reason: "Invalid" };
@@ -163,6 +166,15 @@ describe("GET /api/labels - Security & Authentication Tests", () => {
 
   test("rate limits requests if more than MAX_ATTEMPTS (10) per IP are made (429)", async () => {
     mockToArray.mockResolvedValue([]);
+
+    let callsCount = 0;
+    checkRateLimit.mockImplementation(async () => {
+      callsCount++;
+      if (callsCount > 10) {
+        return { allowed: false, remaining: 0 };
+      }
+      return { allowed: true, remaining: 10 - callsCount };
+    });
 
     // Send 10 successful requests
     for (let i = 0; i < 10; i++) {

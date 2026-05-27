@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { connectDb } from "@/lib/mongodb";
-import { getUserProfile } from "@/lib/firebase-admin";
+import { getUserProfile, initializeFirebase } from "@/lib/firebase-admin";
+import admin from "firebase-admin";
 import { jsonSuccess } from "@/lib/api-response";
 import { z } from "zod";
-import { withErrorHandler } from "@/lib/error-handler";
+import { withErrorHandler, parseJSON } from "@/lib/error-handler";
 import { requireAuth } from "@/lib/rbac";
 import { ValidationError, ForbiddenError, AppError } from "@/lib/errors";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -99,8 +101,13 @@ const settingsSchema = z
 
 export const PATCH = withErrorHandler(async (request) => {
   const decodedToken = await requireAuth(request);
+  const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
+  const rateLimitResult = await checkRateLimit(`settings_patch_${ip}_${decodedToken.uid}`);
+  if (!rateLimitResult.allowed) {
+    throw new AppError("Too many attempts. Please try again later.", 429);
+  }
 
-  const body = await request.json();
+  const body = await parseJSON(request, 1024 * 100);
   const parsed = settingsSchema.safeParse(body);
 
   if (!parsed.success) {
@@ -150,7 +157,28 @@ export const PATCH = withErrorHandler(async (request) => {
       { upsert: true }
     );
   } catch (error) {
+    console.error("Settings sync error:", error);
     throw new AppError("Failed to update user settings database entry.", 500);
+  }
+
+  // Sync profile updates to Firestore to prevent split-brain desync
+  if (settings.profile) {
+    initializeFirebase();
+    const firestoreProfileUpdate = {};
+    
+    if (settings.profile.name !== undefined) firestoreProfileUpdate.displayName = settings.profile.name;
+    if (settings.profile.bio !== undefined) firestoreProfileUpdate.bio = settings.profile.bio;
+    if (settings.profile.phone !== undefined) firestoreProfileUpdate.phone = settings.profile.phone;
+    if (settings.profile.avatar !== undefined) firestoreProfileUpdate.avatar = settings.profile.avatar;
+    
+    if (Object.keys(firestoreProfileUpdate).length > 0) {
+      try {
+        await admin.firestore().collection("users").doc(targetUserId).update(firestoreProfileUpdate);
+        console.log(`[Firestore Sync] Profile synced for user: ${targetUserId}`);
+      } catch (syncError) {
+        console.error("Firestore profile sync failed:", syncError);
+      }
+    }
   }
 
   console.log(`[Audit Log] Settings updated successfully for target user: ${targetUserId} by operator: ${decodedToken.uid} (Role: ${isOperatorAdmin ? "admin" : "owner"})`);
