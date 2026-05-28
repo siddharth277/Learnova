@@ -14,18 +14,14 @@ import AllProviders from "./providers/AllProviders";
 export { metadata } from "@/lib/seo/siteMetadata";
 import { siteStructuredData } from "@/lib/seo/siteStructuredData";
 import NextTopLoader from "nextjs-toploader";
-import CommandPaletteWrapper from "@/components/CommandPaletteWrapper";
+import CommandPalette from "@/components/CommandPalette";
 import RouteAnnouncer from "@/components/RouteAnnouncer";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
-// Validate environment variables at startup (server-side only).
-// Local development should keep public pages renderable for contributor onboarding,
-// while production still fails fast when required services are not configured.
 if (typeof window === "undefined") {
   try {
     const { validateEnv } = require("@/lib/env");
     validateEnv({
-      // Avoid failing the build during local or CI evaluation when runtime secrets are not available.
       throwOnError: false,
       warnOnce: true,
     });
@@ -63,13 +59,10 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Favicons */}
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" href="/icon.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
-
-        {/* Canonical and sitemap */}
         <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
         <script
           type="application/ld+json"
@@ -86,8 +79,7 @@ export default function RootLayout({ children }) {
         >
           Skip to Main Content
         </a>
-          {/* Cursor glow removed per UX preference */}
-          
+
         <AllProviders>
           <ScrollProgress />
           <NextTopLoader
@@ -109,51 +101,19 @@ export default function RootLayout({ children }) {
             </main>
 
             <ScrollToTop />
-
             <Footer />
             <ClientLayout />
             <BackToTop />
             <RouteAnnouncer />
-
-                  <Toaster
-                    position="top-right"
-                    toastOptions={{
-                      duration: 4000,
-                      style: { fontWeight: 600 },
-                    }}
-                  />
-                  <OfflineIndicator />
-                  <CommandPaletteWrapper />
-                </Suspense>
-              </NotificationProvider>
-            </FirestoreProvider>
-          </AuthProvider>
-        </ThemeProvider>
             <Toaster
-              position="bottom-right"
+              position="top-right"
               toastOptions={{
                 duration: 4000,
-                style: {
-                  background: "#0f172a",
-                  color: "#f8fafc",
-                  border: "1px solid rgba(99, 102, 241, 0.15)",
-                  fontWeight: 600,
-                },
-                success: {
-                  iconTheme: {
-                    primary: "#10b981",
-                    secondary: "#0f172a",
-                  },
-                },
-                error: {
-                  iconTheme: {
-                    primary: "#ef4444",
-                    secondary: "#0f172a",
-                  },
-                },
+                style: { fontWeight: 600 },
               }}
             />
             <OfflineIndicator />
+            <CommandPalette />
           </Suspense>
         </AllProviders>
       </body>
