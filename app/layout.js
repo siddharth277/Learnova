@@ -54,6 +54,7 @@ import AllProviders from "./providers/AllProviders";
 // ─── SEO metadata & structured data ─────────────────────────────────────────
 export { metadata } from "@/lib/seo/siteMetadata";
 import { siteStructuredData } from "@/lib/seo/siteStructuredData";
+<<<<<<< HEAD
 import NextTopLoader from "nextjs-toploader";
 
 // 🎯 FIX: Explicitly loading overlays
@@ -62,6 +63,9 @@ import CommandPalette from "../components/CommandPalette";
 import RouteAnnouncer from "@/components/RouteAnnouncer";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import ShortcutsModal from "@/components/ShortcutsModal";
+=======
+import CommandPalette from "../components/CommandPalette";
+>>>>>>> upstream/master
 
 // Validate environment variables at startup (server-side only).
 // ─── Environment validation (server-side only, runs once at startup) ─────────
