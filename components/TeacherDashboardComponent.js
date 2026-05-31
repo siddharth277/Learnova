@@ -63,6 +63,7 @@ import {
 } from "lucide-react";
 import ExportDropdown from "@/components/ui/ExportDropdown";
 import { exportToCSV, exportToPDF } from "@/utils/exportUtils";
+import { exportAttendancePDF } from "@/utils/pdf/attendanceReport";
 import dynamic from "next/dynamic";
 import ChartSkeleton from "@/components/ui/ChartSkeleton";
 import DashboardSkeleton from "@/components/ui/DashboardSkeleton";
@@ -213,13 +214,13 @@ const TeacherDashboard = () => {
         if (format === 'csv') {
           exportToCSV(exportData, filename);
         } else {
-          const columns = [
-            { header: 'Date', dataKey: 'Date' },
-            { header: 'Student Name', dataKey: 'Student Name' },
-            { header: 'Roll No', dataKey: 'Roll No' },
-            { header: 'Status', dataKey: 'Status' }
-          ];
-          exportToPDF(exportData, columns, `Attendance Report - ${selectedClass || 'All'}`, filename);
+          exportAttendancePDF(exportData, {
+            className: selectedClass || 'All Classes',
+            teacherName: teacher.name || 'N/A',
+            dateRange: 'Today',
+            instituteName: userProfile?.instituteName || 'Learnova Institute',
+            logoUrl: userProfile?.logoUrl || null,
+          });
         }
         toast.success(`Successfully exported as ${format.toUpperCase()}`);
       } catch (error) {
