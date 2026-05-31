@@ -51,7 +51,7 @@ export const clearAuthSensitiveCaches = async () => {
 
     await Promise.all(authCacheKeys.map((key) => cacheStorage.delete(key)));
   } catch (cacheErr) {
-    console.warn("Failed to clear auth-sensitive caches:", cacheErr);
+    // Failed to clear caches; silently ignore to avoid leaking sensitive info to console
   }
 };
 
@@ -77,10 +77,6 @@ function createTokenRefreshManager(firebaseUser, onSessionExpired) {
       consecutiveFailures = 0;
     } catch (tokenError) {
       consecutiveFailures++;
-      console.warn(
-        `[useAuth] Token refresh failed (attempt ${consecutiveFailures}/${MAX_REFRESH_RETRIES}):`,
-        tokenError?.message
-      );
 
       if (consecutiveFailures >= MAX_REFRESH_RETRIES) {
         console.error("[useAuth] Token refresh failed after max retries. Session may be expired.");
@@ -192,7 +188,7 @@ export const useAuth = () => {
               setLoading(false);
             }
           }, (snapError) => {
-            console.warn("Profile snapshot subscription error:", snapError.message);
+            // Profile snapshot subscription error - handled gracefully without console output
             // Handle permission denied or other errors gracefully without locking loading state
             setLoading(false);
           });

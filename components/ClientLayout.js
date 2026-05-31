@@ -209,7 +209,6 @@ export default function ClientLayout() {
   },
   { merge: true }
 );
-console.log("[streak-sync] Firestore updated successfully.");
         }
 
       } catch (error) {
