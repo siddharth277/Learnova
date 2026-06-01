@@ -237,6 +237,12 @@ export function Navbar() {
     }
   };
 
+  const isRouteActive = (href) => {
+    if (!pathname) return false;
+    if (href === "/") return pathname === href;
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
   const navigationItems = [
     { href: "/", label: "Home", icon: Home },
     { href: "/about", label: "About", icon: BookOpen },
