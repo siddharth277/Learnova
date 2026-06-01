@@ -52,3 +52,11 @@ export function matchUserIntent(prompt) {
 
   return { matched: false };
 }
+
+export async function parseUserIntent(prompt) {
+  const match = matchUserIntent(prompt);
+  if (!match.matched) {
+    return JSON.stringify({ status: 'error', error: 'Could not parse user intent' });
+  }
+  return JSON.stringify({ status: 'success', tool: match.tool, data: match.args });
+}

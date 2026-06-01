@@ -8,6 +8,7 @@ import { z } from "zod";
 
 const DEFAULT_DAYS_BACK = 7;
 const MAX_SESSION_PAYLOAD_BYTES = 1024 * 10;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const sessionSchema = z.object({
   duration: z
@@ -22,6 +23,41 @@ const sessionSchema = z.object({
     message: "type must be either 'focus' or 'break'",
   }),
 });
+
+function parseDateParam(value, fieldName) {
+  const parsedDate = new Date(value);
+
+  if (!Number.isFinite(parsedDate.getTime())) {
+    throw new ValidationError(`${fieldName} must be a valid date string`);
+  }
+
+  return parsedDate;
+}
+
+export function parseSessionDateRange(searchParams, now = new Date()) {
+  const rawEndDate = searchParams.get("endDate");
+  const rawStartDate = searchParams.get("startDate");
+
+  const endDate = rawEndDate ? parseDateParam(rawEndDate, "endDate") : now;
+  const startDate = rawStartDate
+    ? parseDateParam(rawStartDate, "startDate")
+    : new Date(endDate.getTime() - DEFAULT_DAYS_BACK * DAY_MS);
+
+  if (startDate.getTime() > endDate.getTime()) {
+    throw new ValidationError("startDate must be before or equal to endDate");
+  }
+
+  const daySpan = Math.max(
+    1,
+    Math.ceil((endDate.getTime() - startDate.getTime()) / DAY_MS)
+  );
+
+  return {
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString(),
+    daySpan,
+  };
+}
 
 /**
  * POST /api/productivity/session
@@ -97,10 +133,7 @@ export const GET = withErrorHandler(async (request) => {
   }
 
   const { searchParams } = new URL(request.url);
-  const endDate = searchParams.get("endDate") || new Date().toISOString();
-  const startDate =
-    searchParams.get("startDate") ||
-    new Date(Date.now() - DEFAULT_DAYS_BACK * 24 * 60 * 60 * 1000).toISOString();
+  const { startDate, endDate, daySpan } = parseSessionDateRange(searchParams);
 
   const db = await connectDb();
   const userId = decodedToken.uid;
@@ -116,11 +149,6 @@ export const GET = withErrorHandler(async (request) => {
 
   const focusSessions = sessions.filter((s) => s.type === "focus");
   const totalFocusMinutes = focusSessions.reduce((sum, s) => sum + s.duration, 0);
-
-  const daySpan = Math.max(
-    1,
-    Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24))
-  );
 
   return NextResponse.json({
     sessions: sessions.map(({ _id, ...rest }) => rest),

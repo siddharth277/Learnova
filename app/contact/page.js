@@ -4,6 +4,8 @@ import DarkVeil from "@/components/ui-block/DarkVeil";
 import React, { useState, useRef, useEffect } from "react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
 import FormSkeleton from "@/components/ui/FormSkeleton";
 import { CONTACT_INFO } from "@/constants/contact";
 import {
@@ -15,7 +17,6 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  Twitter,
   Linkedin,
   Facebook,
   Sparkles,
@@ -23,8 +24,18 @@ import {
 import emailjs from "@emailjs/browser";
 import toast from "react-hot-toast";
 
+function XIcon({ size = 18, className }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.91-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
+
 export default function Contact() {
   const { theme } = useTheme();
+  const { user } = useAuth();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -110,6 +121,15 @@ export default function Contact() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!user) {
+      toast.error("Please log in to your Learnova account to submit this form.");
+      setSubmitStatus({
+        type: "error",
+        message: "You are being redirected to the login page.",
+      });
+      setTimeout(() => router.push("/auth"), 2000);
+      return;
+    }
     const COOLDOWN_MS = 60 * 1000;
     const lastSubmit = localStorage.getItem("learnova_contact_last_submit");
     if (lastSubmit && Date.now() - parseInt(lastSubmit) < COOLDOWN_MS) {
@@ -140,10 +160,22 @@ export default function Contact() {
     setIsSubmitting(true);
     setSubmitStatus(null);
     try {
+      const templateParams = {
+        from_name: formData.name,
+        reply_to: formData.email,
+        from_email: formData.email,
+        company_name: formData.company || "Not Provided",
+        message: formData.message,
+        subject: `New Contact Form Message from ${formData.name}`,
+        to_email: "test-admin@learnova.com",
+        to_name: "Learnova Admin",
+        email: "test-admin@learnova.com",
+        receiver_email: "test-admin@learnova.com",
+      };
       await emailjs.send(
         process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID,
         process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID,
-        { ...formData },
+        templateParams,
         process.env.NEXT_PUBLIC_EMAILJS_USER_ID
       );
       setSubmitStatus({
@@ -191,9 +223,9 @@ export default function Contact() {
 
   const socialLinks = [
     {
-      icon: Twitter,
-      label: "Twitter",
-      href: "https://twitter.com/learnova",
+      icon: XIcon,
+      label: "X",
+      href: "https://x.com/learnova",
       color: "hover:text-blue-500 hover:border-blue-300 dark:hover:text-blue-400 dark:hover:border-blue-400/50",
     },
     {

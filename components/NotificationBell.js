@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { apiFetch } from "@/lib/apiClient";
 import { extractNotificationsFromResponse } from "@/lib/notificationResponse";
 import { useSafePolling } from "@/hooks/useSafePolling";
+import { useIsMounted } from "@/hooks/useIsMounted";
 
 // AbortController for fetch requests
 const createAbortController = () => {
@@ -57,6 +58,7 @@ export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const isMounted = useIsMounted();
 
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
@@ -142,15 +144,17 @@ export default function NotificationBell() {
         body: { userId: user.uid },
       });
 
-      setNotifications((currentNotifications) =>
-        currentNotifications.map((notification) => ({
-          ...notification,
-          read: true,
-        }))
-      );
-      setError("");
+      if (isMounted()) {
+        setNotifications((currentNotifications) =>
+          currentNotifications.map((notification) => ({
+            ...notification,
+            read: true,
+          }))
+        );
+        setError("");
+      }
     } catch (err) {
-      setError(err.message || "Unable to update notifications");
+      if (isMounted()) setError(err.message || "Unable to update notifications");
     }
   }, [user]);
 

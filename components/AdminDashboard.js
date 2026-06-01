@@ -41,6 +41,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { getPendingActions as getOutboxRecords, removePendingAction as removeFromOutbox, clearPendingActions as clearOutbox } from "@/db/offlineStore";
 import { triggerOfflineSync } from "@/utils/offlineRequestHandler";
 import { apiFetch } from "@/lib/apiClient";
+import { useIsMounted } from "@/hooks/useIsMounted";
 
 
 const AttendanceTrendsChart = dynamic(
@@ -60,6 +61,7 @@ const SuperAdminDashboard = () => {
   const [showCriticalAlert, setShowCriticalAlert] = useState(false);
   const [systemStatus, setSystemStatus] = useState("operational");
   const { user } = useAuth();
+  const isMounted = useIsMounted();
 
   const [platformStats, setPlatformStats] = useState({
     totalInstitutes: 0,
@@ -93,7 +95,9 @@ const SuperAdminDashboard = () => {
     const updateOutbox = async () => {
       try {
         const records = await getOutboxRecords();
-        setOutboxRecords(records || []);
+        if (isMounted()) {
+          setOutboxRecords(records || []);
+        }
       } catch (err) {
         console.error("Error reading outbox in dashboard:", err);
       }
