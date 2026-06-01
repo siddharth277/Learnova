@@ -95,6 +95,8 @@ const AttendanceAnalytics = ({ userId, recentActivity = [] }) => {
   const [activeTrendTab, setActiveTrendTab] = useState("weekly");
 
   useEffect(() => {
+    let isMounted = true;
+
     if (!userId) {
       setLoading(false);
       return;
@@ -102,8 +104,10 @@ const AttendanceAnalytics = ({ userId, recentActivity = [] }) => {
 
     const fetchAttendance = async () => {
       try {
-        setLoading(true);
-        setError(null);
+        if (isMounted) {
+          setLoading(true);
+          setError(null);
+        }
 
         const attendanceQuery = query(
           collection(db, "attendance_records"),
@@ -111,12 +115,16 @@ const AttendanceAnalytics = ({ userId, recentActivity = [] }) => {
         );
 
         const snapshot = await getDocs(attendanceQuery);
+
+        if (!isMounted) return;
+
         const records = snapshot.docs.map((doc) => doc.data() || {});
         const totalPresent = records.length;
         const totalClasses = getWeekdaysSince();
 
         const safeTotalClasses = totalClasses > 0 ? totalClasses : 1;
         let totalAbsent = safeTotalClasses - totalPresent;
+
         if (totalAbsent < 0) totalAbsent = 0;
 
         const attendancePercentage = Math.round(
@@ -124,6 +132,7 @@ const AttendanceAnalytics = ({ userId, recentActivity = [] }) => {
         );
 
         setAttendanceRecords(records);
+
         setStats({
           totalPresent,
           totalAbsent,
@@ -131,14 +140,22 @@ const AttendanceAnalytics = ({ userId, recentActivity = [] }) => {
           percentage: Math.min(100, attendancePercentage),
         });
       } catch (err) {
+        if (!isMounted) return;
+
         console.error(err);
         setError("Failed to load attendance analytics.");
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchAttendance();
+
+    return () => {
+      isMounted = false;
+    };
   }, [userId]);
 
   const subjectPerformance = useMemo(() => {
