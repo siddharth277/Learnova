@@ -67,7 +67,7 @@ export const GET = withErrorHandler(async (request) => {
 
     const alertsSnapshot = await db.collection("critical_alerts")
       .orderBy("createdAt", "desc")
-      .limit(50)
+      .limit(200)
       .get();
     if (!alertsSnapshot.empty) {
       criticalAlerts = alertsSnapshot.docs.map((doc) => ({
