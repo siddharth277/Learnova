@@ -139,7 +139,7 @@ async function sendWarningEmails(emailsToSend) {
     return;
   }
 
-  for (const emailData of emailsToSend) {
+  const sendEmail = async (emailData) => {
     try {
       await fetch("https://api.emailjs.com/api/v1.0/email/send", {
         method: "POST",
@@ -156,6 +156,13 @@ async function sendWarningEmails(emailsToSend) {
     } catch (error) {
       console.error(`Failed to send email to ${emailData.to_email}:`, error);
     }
+  };
+
+  // Process emails in parallel chunks to prevent serverless function timeouts
+  const CHUNK_SIZE = 50;
+  for (let i = 0; i < emailsToSend.length; i += CHUNK_SIZE) {
+    const chunk = emailsToSend.slice(i, i + CHUNK_SIZE);
+    await Promise.allSettled(chunk.map(sendEmail));
   }
 }
 
