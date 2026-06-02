@@ -2,7 +2,19 @@ import { POST } from "@/app/api/conversations/route";
 import { requireAuth } from "@/lib/rbac";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { detectInjection } from "@/utils/promptGuard";
-import { UnauthorizedError } from "@/lib/errors";
+import { AppError } from "@/lib/errors";
+
+vi.mock("groq-sdk", () => {
+  return {
+    Groq: vi.fn().mockImplementation(() => ({
+      chat: {
+        completions: {
+          create: vi.fn().mockResolvedValue([]),
+        },
+      },
+    })),
+  };
+});
 
 vi.mock("@/lib/rbac", () => ({
   requireAuth: vi.fn(),
@@ -56,7 +68,7 @@ describe("POST /api/conversations - Auth Security", () => {
   });
 
   test("rejects unauthenticated request with 401 when requireAuth throws", async () => {
-    requireAuth.mockRejectedValue(new UnauthorizedError("Unauthorized"));
+    requireAuth.mockRejectedValue(new AppError("Unauthorized", 401));
 
     const req = createMockRequest({}, { messages: [{ text: "Hello" }] });
     const response = await POST(req);
@@ -67,7 +79,7 @@ describe("POST /api/conversations - Auth Security", () => {
   });
 
   test("rejects request with invalid auth token", async () => {
-    requireAuth.mockRejectedValue(new UnauthorizedError("Unauthorized"));
+    requireAuth.mockRejectedValue(new AppError("Unauthorized", 401));
 
     const req = createMockRequest(
       { authorization: "Bearer invalid-token" },

@@ -38,8 +38,8 @@ import SkeletonCard from "@/components/ui/SkeletonCard";
 
 // CRITICAL FIX: Imported missing useAuth hook to prevent ReferenceError crash
 import { useAuth } from "@/hooks/useAuth";
-import { getOutboxRecords, removeFromOutbox, clearOutbox } from "@/lib/offlineStore";
-import { syncAttendanceQueue } from "@/lib/syncService";
+import { getPendingActions as getOutboxRecords, removePendingAction as removeFromOutbox, clearPendingActions as clearOutbox } from "@/db/offlineStore";
+import { triggerOfflineSync } from "@/utils/offlineRequestHandler";
 import { apiFetch } from "@/lib/apiClient";
 import { useIsMounted } from "@/hooks/useIsMounted";
 
@@ -1161,7 +1161,7 @@ const SuperAdminDashboard = () => {
       },
       ...prev,
     ]);
-    await syncAttendanceQueue();
+    await triggerOfflineSync();
     const records = await getOutboxRecords();
     setOutboxRecords(records || []);
   };
