@@ -154,31 +154,15 @@ export default function TimetablePage() {
         🚀 AI Learning Roadmap
       </h2>
 
-      <div className="grid md:grid-cols-4 gap-3 text-sm">
-        <div className="border rounded-lg p-3">
-          <h3 className="font-semibold">Phase 1</h3>
-          <p>Foundation & Basics</p>
-          <p className="text-muted-foreground">Week 1-2</p>
-        </div>
+    <div className="grid md:grid-cols-4 gap-3 text-sm">
+      {roadmap.map((item, index) => (
+        <div key={index} className="border rounded-lg p-3">
+          <h3 className="font-semibold">Phase {index + 1}</h3>
+          <p>{item}</p>
+          </div>
+      ))}
+    </div>
 
-        <div className="border rounded-lg p-3">
-          <h3 className="font-semibold">Phase 2</h3>
-          <p>Core Concepts</p>
-          <p className="text-muted-foreground">Week 3-6</p>
-        </div>
-
-        <div className="border rounded-lg p-3">
-          <h3 className="font-semibold">Phase 3</h3>
-          <p>Projects & Practice</p>
-          <p className="text-muted-foreground">Week 7-10</p>
-        </div>
-
-        <div className="border rounded-lg p-3">
-          <h3 className="font-semibold">Phase 4</h3>
-          <p>Interview / Exam Prep</p>
-          <p className="text-muted-foreground">Week 11-12</p>
-        </div>
-      </div>
     </div>
 
     <div className="grid lg:grid-cols-2 gap-4 mb-4">
