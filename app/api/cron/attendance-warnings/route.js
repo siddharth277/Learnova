@@ -66,26 +66,6 @@ export async function GET(request) {
       for (const rec of attendanceRecords) {
         if (!attendanceByUser.has(rec.userId)) {
           attendanceByUser.set(rec.userId, []);
-      
-      // Fetch all students from MongoDB
-      const students = await db.collection('users').find({ role: 'student' }).toArray();
-      
-      const now = new Date();
-      const cooldownPeriod = 7 * 24 * 60 * 60 * 1000;
-      const cooldownDate = new Date(now.getTime() - cooldownPeriod);
-
-      for (const student of students) {
-        const studentUid = student.firebaseUid;
-        if (!studentUid) continue;
-
-        // Check recent warning logs to prevent spam
-        const recentLog = await db.collection('warning_logs').findOne({
-          userId: studentUid,
-          createdAt: { $gte: cooldownDate }
-        });
-
-        if (recentLog) {
-          continue;
         }
         attendanceByUser.get(rec.userId).push(rec);
       }
@@ -93,13 +73,6 @@ export async function GET(request) {
       // Batch-fetch user profiles for all students needing evaluation
       const studentsToCheck = distinctStudentIds.filter((id) => !warnedUserIds.has(id));
       if (studentsToCheck.length === 0) continue;
-        // Fetch attendance records from Firestore attendance_records collection
-        const attendanceSnapshot = await firestore
-          .collection('attendance_records')
-          .where('userId', '==', studentUid)
-          .get();
-
-        const attendanceRecords = attendanceSnapshot.docs.map(doc => doc.data());
 
       const studentDocs = await db.collection('users').find({
         $or: [
@@ -121,8 +94,6 @@ export async function GET(request) {
 
           notificationsToInsert.push({
             userId: uid,
-          notificationsToInsert.push({
-            userId: studentUid,
             title: 'Low Attendance Warning',
             message: `Your current attendance is ${evaluation.percentage}%, which is below the required ${threshold}%. Please improve your attendance.`,
             type: 'warning',
@@ -132,7 +103,6 @@ export async function GET(request) {
 
           warningLogsToInsert.push({
             userId: uid,
-            userId: studentUid,
             percentage: evaluation.percentage,
             threshold,
             createdAt: now,
@@ -142,10 +112,6 @@ export async function GET(request) {
             emailsToSend.push({
               to_email: email,
               to_name: name,
-          if (student.email) {
-            emailsToSend.push({
-              to_email: student.email,
-              to_name: student.fullName || student.name || 'Student',
               attendance_percentage: evaluation.percentage,
               threshold,
             });
