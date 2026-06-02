@@ -8,12 +8,7 @@ export default function TimetablePage() {
   const [level, setLevel] = useState("Beginner");
   const [topics, setTopics] = useState("");
   const [generated, setGenerated] = useState(false);
-  const [milestones, setMilestones] = useState([
-    false,
-    false,
-    false,
-    false,
-]);
+  const [milestones, setMilestones] = useState([false, false, false, false]);
   const [progress, setProgress] = useState(0);
 
   const [roadmap, setRoadmap] = useState([]);
@@ -57,9 +52,19 @@ export default function TimetablePage() {
 
   setRoadmap(generatedRoadmap);
   setGenerated(true);
-  setProgress(25);
+  setProgress(0);
+  setMilestones([false, false, false, false]);
 };
 
+const toggleMilestone = (index) => {
+  const updated = [...milestones];
+  updated[index] = !updated[index];
+
+  setMilestones(updated);
+
+  const completed = updated.filter(Boolean).length;
+  setProgress(completed * 25);
+};
   return (
     <div className="min-h-screen bg-background pt-24 pb-12 px-4">
       <div className="max-w-5xl mx-auto">
@@ -165,7 +170,42 @@ export default function TimetablePage() {
 
     </div>
 
-    <div className="grid lg:grid-cols-2 gap-4 mb-4">
+    {/* end of roadmap section */}
+
+<div className="border rounded-xl p-4 mb-4">
+  <h2 className="font-bold text-lg mb-3">
+    📈 Progress Tracking
+  </h2>
+
+  <div className="w-full bg-gray-700 rounded-full h-3 mb-3">
+    <div
+      className="bg-green-500 h-3 rounded-full transition-all"
+      style={{ width: `${progress}%` }}
+    />
+  </div>
+
+  <p className="text-sm mb-3">
+    Progress: {progress}%
+  </p>
+
+  <div className="space-y-2">
+    {roadmap.map((item, index) => (
+      <label
+        key={index}
+        className="flex items-center gap-2 text-sm"
+      >
+        <input
+          type="checkbox"
+          checked={milestones[index]}
+          onChange={() => toggleMilestone(index)}
+        />
+        {item}
+      </label>
+    ))}
+  </div>
+</div>
+
+
       {/* Daily Timetable */}
       <div className="border rounded-xl p-4">
         <h2 className="font-bold text-lg mb-3">
@@ -195,7 +235,7 @@ export default function TimetablePage() {
           <li>✓ Revise weak concepts</li>
         </ul>
       </div>
-    </div>
+    
 
     <div className="grid lg:grid-cols-3 gap-4">
       {/* Priorities */}
