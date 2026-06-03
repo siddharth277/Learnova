@@ -4,6 +4,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Navbar } from "@/components/Navbar";
 import CommentSection from "@/components/CommentSection";
+
 import {
   TrendingUp,
   Award,
@@ -19,7 +20,9 @@ import {
   Calendar,
   UserCheck,
   BarChart3,
-  Brain,
+  Quote,
+  Star,
+
 } from "lucide-react";
 
 // --- Mock Data & Constants ---
@@ -77,7 +80,7 @@ const FEATURES = [
   },
 
   {
-  icon: Brain,
+  icon: Zap,
   title: "AI Study Planner",
   description:
     "Generate personalized daily study plans, weekly goals, revision schedules, and topic prioritization based on your goals and available study time.",
@@ -104,6 +107,27 @@ const ROLE_DATA = {
     points: ["Real-time threshold alerts", "Syllabus tracking dashboard", "Direct assignment portals"]
   }
 };
+
+const TESTIMONIALS = [
+  {
+    name: "Aarav Sharma",
+    role: "Student",
+    review:
+      "Learnova helped me track attendance, organize my studies, and stay focused throughout the semester.",
+  },
+  {
+    name: "Priya Mehta",
+    role: "Teacher",
+    review:
+      "The AI Attendance Engine significantly reduced administrative work and allowed me to focus on teaching.",
+  },
+  {
+    name: "Rohan Kulkarni",
+    role: "Institute Admin",
+    review:
+      "Managing attendance records, reports, and compliance tasks has become effortless with Learnova.",
+  },
+];
 
 const FAQ_ITEMS = [
   {
@@ -303,8 +327,8 @@ export default function Page() {
                         onMouseLeave={() => setHoveredRing(null)}
                         className={`group block p-4 rounded-2xl border transition-all duration-500 cursor-pointer
                           ${isSelected
-                            ? "bg-purple-950/20 border-purple-500/40 translate-x-2 shadow-lg shadow-purple-500/5"
-                            : "bg-white/[0.02] dark:bg-black/20 border-white/5 hover:border-white/10 hover:bg-white/[0.04]"
+                            ? "bg-purple-100 dark:bg-purple-950/20 border-purple-400 dark:border-purple-500/40 translate-x-2 shadow-lg shadow-purple-500/5"
+                            : "bg-gray-100/80 dark:bg-black/20 border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10 hover:bg-gray-100 dark:hover:bg-white/[0.04]"
                           }`}
                       >
                         {stat.href ? (
@@ -313,10 +337,10 @@ export default function Page() {
                               <IconComponent className="w-5 h-5" />
                             </div>
                             <div className="flex-1">
-                              <div className="text-2xl font-black text-black dark:text-white transition-colors duration-300 group-hover:text-purple-500 dark:group-hover:text-purple-400">
+                              <div className="text-2xl font-black text-slate-950 dark:text-white transition-colors duration-300 group-hover:text-purple-500 dark:group-hover:text-purple-400">
                                 <AnimatedCounter to={stat.number} suffix={stat.suffix} />
                               </div>
-                              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mt-0.5 flex items-center gap-1 group-hover:text-black dark:group-hover:text-white transition-colors">
+                              <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 mt-0.5 flex items-center gap-1 group-hover:text-slate-950 dark:group-hover:text-white transition-colors">
                                 {stat.label}
                                 <ArrowRight className="w-3.5 h-3.5 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 text-purple-400" />
                               </p>
@@ -328,10 +352,10 @@ export default function Page() {
                               <IconComponent className="w-5 h-5" />
                             </div>
                             <div className="flex-1">
-                              <div className="text-2xl font-black text-black dark:text-white">
+                              <div className="text-2xl font-black text-slate-950 dark:text-white">
                                 <AnimatedCounter to={stat.number} suffix={stat.suffix} />
                               </div>
-                              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mt-0.5">
+                              <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 mt-0.5">
                                 {stat.label}
                               </p>
                             </div>
@@ -457,6 +481,80 @@ export default function Page() {
             </div>
           </div>
         </section>
+
+        {/* --- TESTIMONIALS SECTION --- */}
+<section
+  id="testimonials"
+  className="py-24 bg-gray-50/40 dark:bg-zinc-950/40 border-y border-gray-100 dark:border-white/[0.02]"
+>
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <Reveal className="text-center max-w-3xl mx-auto mb-16 space-y-4">
+      <SectionBadge
+        icon={Sparkles}
+        text="Success Stories"
+        gradient="from-blue-500/10 to-purple-500/10 dark:from-blue-500/20 dark:to-purple-500/20"
+        borderClass="border-blue-200/50 dark:border-blue-500/30"
+        iconClass="text-blue-500"
+        textClass="text-blue-700 dark:text-blue-300"
+      />
+
+      <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-black dark:text-white">
+        Student Testimonials & Success Stories
+      </h2>
+
+      <p className="text-muted-foreground max-w-2xl mx-auto">
+        Discover how Learnova is transforming educational experiences
+        through intelligent attendance management, curriculum tracking,
+        and modern campus solutions.
+      </p>
+    </Reveal>
+
+    <div className="grid md:grid-cols-3 gap-8">
+      {TESTIMONIALS.map((item, index) => (
+        <Reveal key={index} delay={index * 0.1}>
+          <div className="h-full p-6 bg-white dark:bg-zinc-900/40 border border-gray-200/60 dark:border-white/5 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 group">
+
+            <div className="flex items-center justify-between mb-6">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold">
+                {item.name.charAt(0)}
+              </div>
+
+              <div className="flex gap-1">
+                {[...Array(5)].map((_, i) => (
+                  <Star
+                    key={i}
+                    className="w-4 h-4 fill-yellow-400 text-yellow-400"
+                  />
+                ))}
+              </div>
+            </div>
+
+            <Quote className="w-8 h-8 text-purple-500 mb-4 opacity-70" />
+
+            <p className="text-sm text-muted-foreground leading-relaxed mb-6 italic">
+              "{item.review}"
+            </p>
+
+            <div className="border-t border-gray-200 dark:border-white/5 pt-4">
+              <h4 className="font-semibold text-black dark:text-white">
+                {item.name}
+              </h4>
+
+              <p className="text-sm text-muted-foreground">
+                {item.role}
+              </p>
+
+              <span className="inline-flex items-center mt-2 text-xs font-medium text-emerald-500">
+                ✓ Verified User
+              </span>
+            </div>
+          </div>
+        </Reveal>
+      ))}
+    </div>
+  </div>
+</section>
 
         {/* --- NEW SECTION: FAQ ACCORDION --- */}
         <section id="faqs" className="py-20 bg-gray-50/40 dark:bg-zinc-950/40 border-y border-gray-100 dark:border-white/[0.02]">

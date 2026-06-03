@@ -6,6 +6,8 @@ import toast from "react-hot-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiFetch } from "@/lib/apiClient";
 import { extractNotificationsFromResponse } from "@/lib/notificationResponse";
+import { useSafePolling } from "@/hooks/useSafePolling";
+import { useIsMounted } from "@/hooks/useIsMounted";
 
 // AbortController for fetch requests
 const createAbortController = () => {
@@ -56,83 +58,76 @@ export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const isMounted = useIsMounted();
 
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
   const previousIdsRef = useRef(new Set());
   const hasLoadedRef = useRef(false);
-  const abortControllerRef = useRef(null);
-  const pollingTimeoutRef = useRef(null);
-  const isFetchingRef = useRef(false);
 
-  const fetchNotifications = useCallback(async () => {
-    if (!user?.uid) {
-      setNotifications([]);
-      previousIdsRef.current = new Set();
-      hasLoadedRef.current = false;
+  useSafePolling(
+    async (signal) => {
+      if (loading) {
+        return;
+      }
+
+      if (!user?.uid) {
+        setNotifications([]);
+        previousIdsRef.current = new Set();
+        hasLoadedRef.current = false;
+        setError("");
+        return;
+      }
+
+      setIsLoading(true);
       setError("");
-      return;
-    }
 
-    // Prevent overlapping requests
-    if (isFetchingRef.current) {
-      return;
-    }
-    isFetchingRef.current = true;
-
-    // Cancel previous request if still pending
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = createAbortController();
-
-    setIsLoading(true);
-    setError("");
-
-    try {
-      const token = await user.getIdToken();
-      const data = await apiFetch(`/api/notifications?userId=${encodeURIComponent(user.uid)}`, {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        },
-        signal: abortControllerRef.current?.signal
-      });
-
-      const fetchedNotifications = extractNotificationsFromResponse(data);
-      const currentIds = new Set(
-        fetchedNotifications
-          .map((notification) => notification._id?.toString?.() || notification._id)
-          .filter(Boolean)
-      );
-
-      if (hasLoadedRef.current) {
-        const newNotifications = fetchedNotifications.filter((notification) => {
-          const id = notification._id?.toString?.() || notification._id;
-          return id && !previousIdsRef.current.has(id);
+      try {
+        const token = await user.getIdToken();
+        const data = await apiFetch(`/api/notifications?userId=${encodeURIComponent(user.uid)}`, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          },
+          signal
         });
 
-        if (newNotifications.length > 0) {
-          newNotifications.forEach((notification) => {
-            toast.success(notification.message);
-          });
-        }
-      }
+        const fetchedNotifications = extractNotificationsFromResponse(data);
+        const currentIds = new Set(
+          fetchedNotifications
+            .map((notification) => notification._id?.toString?.() || notification._id)
+            .filter(Boolean)
+        );
 
-      previousIdsRef.current = currentIds;
-      hasLoadedRef.current = true;
-      setNotifications(fetchedNotifications);
-      setError("");
-    } catch (error) {
-      // Ignore abort errors (user-triggered cancellations)
-      if (error?.name !== "AbortError") {
-        setError("Unable to load notifications");
-        setNotifications([]);
+        if (hasLoadedRef.current) {
+          const newNotifications = fetchedNotifications.filter((notification) => {
+            const id = notification._id?.toString?.() || notification._id;
+            return id && !previousIdsRef.current.has(id);
+          });
+
+          if (newNotifications.length > 0) {
+            newNotifications.forEach((notification) => {
+              toast.success(notification.message);
+            });
+          }
+        }
+
+        previousIdsRef.current = currentIds;
+        hasLoadedRef.current = true;
+        setNotifications(fetchedNotifications);
+        setError("");
+      } catch (err) {
+        if (err?.name !== "AbortError") {
+          setError("Unable to load notifications");
+          setNotifications([]);
+        }
+        throw err;
+      } finally {
+        setIsLoading(false);
       }
-    } finally {
-      setIsLoading(false);
-      isFetchingRef.current = false;
-    }
-  }, [user]);
+    },
+    30000,
+    [user?.uid, loading]
+  );
 
   const markNotificationsAsRead = useCallback(async () => {
     if (!user?.uid) {
@@ -149,57 +144,20 @@ export default function NotificationBell() {
         body: { userId: user.uid },
       });
 
-      setNotifications((currentNotifications) =>
-        currentNotifications.map((notification) => ({
-          ...notification,
-          read: true,
-        }))
-      );
-      setError("");
+      if (isMounted()) {
+        setNotifications((currentNotifications) =>
+          currentNotifications.map((notification) => ({
+            ...notification,
+            read: true,
+          }))
+        );
+        setError("");
+      }
     } catch (err) {
-      setError(err.message || "Unable to update notifications");
+      if (isMounted()) setError(err.message || "Unable to update notifications");
     }
   }, [user]);
 
-  useEffect(() => {
-    if (loading) {
-      return undefined;
-    }
-
-    if (!user?.uid) {
-      setNotifications([]);
-      previousIdsRef.current = new Set();
-      hasLoadedRef.current = false;
-      return undefined;
-    }
-
-    fetchNotifications();
-
-    // Use recursive timeout instead of setInterval to prevent request stacking
-    // Ensures each request completes before the next one starts
-    const scheduleNextPoll = () => {
-      pollingTimeoutRef.current = setTimeout(() => {
-        fetchNotifications().then(() => {
-          scheduleNextPoll();
-        }).catch(() => {
-          // Reschedule even on error
-          scheduleNextPoll();
-        });
-      }, 30000);
-    };
-    scheduleNextPoll();
-
-    return () => {
-      if (pollingTimeoutRef.current) {
-        clearTimeout(pollingTimeoutRef.current);
-        pollingTimeoutRef.current = null;
-      }
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        abortControllerRef.current = null;
-      }
-    };
-  }, [fetchNotifications, loading, user?.uid]);
 
   useEffect(() => {
     if (!isOpen) {

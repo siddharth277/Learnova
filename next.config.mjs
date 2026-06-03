@@ -1,6 +1,18 @@
 /** @type {import('next').NextConfig} */
+import { webcrypto } from 'node:crypto';
 import createNextIntlPlugin from 'next-intl/plugin';
 import withPWAInit from '@ducanh2912/next-pwa';
+
+// Polyfill globalThis.crypto for Node 18 (jose middleware uses Web Crypto API).
+// This covers any in-process code paths; worker threads are handled via
+// --experimental-global-webcrypto in the build script (package.json);
+// child processes spawned after config load inherit NODE_OPTIONS below.
+if (typeof globalThis.crypto === 'undefined') {
+  globalThis.crypto = webcrypto;
+}
+if (!process.env.NODE_OPTIONS?.includes('--experimental-global-webcrypto')) {
+  process.env.NODE_OPTIONS = (process.env.NODE_OPTIONS || '') + ' --experimental-global-webcrypto';
+}
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.js');
 

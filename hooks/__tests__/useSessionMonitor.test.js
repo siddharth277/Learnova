@@ -1,20 +1,21 @@
 import { renderHook, act } from "@testing-library/react";
+import { vi } from "vitest";
 import { useSessionMonitor } from "../useSessionMonitor";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 
-jest.mock("@/hooks/useAuth", () => ({
-  useAuth: jest.fn(),
+vi.mock("@/hooks/useAuth", () => ({
+  useAuth: vi.fn(),
 }));
 
-jest.mock("next/navigation", () => ({
-  useRouter: jest.fn(),
+vi.mock("next/navigation", () => ({
+  useRouter: vi.fn(),
 }));
 
-jest.mock("react-hot-toast", () => ({
+vi.mock("react-hot-toast", () => ({
   toast: {
-    error: jest.fn(),
+    error: vi.fn(),
   },
 }));
 
@@ -25,8 +26,8 @@ describe("useSessionMonitor", () => {
 
   beforeEach(() => {
     originalFetch = global.fetch;
-    mockSignOut = jest.fn().mockResolvedValue(undefined);
-    mockRouterPush = jest.fn();
+    mockSignOut = vi.fn().mockResolvedValue(undefined);
+    mockRouterPush = vi.fn();
 
     useAuth.mockReturnValue({
       signOut: mockSignOut,
@@ -38,7 +39,7 @@ describe("useSessionMonitor", () => {
 
     // Reset global state
     delete window.__sessionExpired;
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -46,7 +47,7 @@ describe("useSessionMonitor", () => {
   });
 
   it("should intercept 401 responses and trigger logout flow", async () => {
-    global.fetch = jest.fn().mockResolvedValue({ status: 401 });
+    global.fetch = vi.fn().mockResolvedValue({ status: 401 });
 
     renderHook(() => useSessionMonitor());
 
@@ -59,8 +60,8 @@ describe("useSessionMonitor", () => {
     expect(mockRouterPush).toHaveBeenCalledWith("/auth");
   });
 
-  it("should intercept 403 responses and trigger logout flow", async () => {
-    global.fetch = jest.fn().mockResolvedValue({ status: 403 });
+  it("should not trigger logout for 403 responses", async () => {
+    global.fetch = vi.fn().mockResolvedValue({ status: 403 });
 
     renderHook(() => useSessionMonitor());
 
@@ -68,13 +69,13 @@ describe("useSessionMonitor", () => {
       await global.fetch("/api/test");
     });
 
-    expect(toast.error).toHaveBeenCalledWith("Session expired. Please log in again.");
-    expect(mockSignOut).toHaveBeenCalled();
-    expect(mockRouterPush).toHaveBeenCalledWith("/auth");
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(mockSignOut).not.toHaveBeenCalled();
+    expect(mockRouterPush).not.toHaveBeenCalled();
   });
 
   it("should not trigger logout for 200 responses", async () => {
-    global.fetch = jest.fn().mockResolvedValue({ status: 200 });
+    global.fetch = vi.fn().mockResolvedValue({ status: 200 });
 
     renderHook(() => useSessionMonitor());
 
@@ -88,7 +89,7 @@ describe("useSessionMonitor", () => {
   });
 
   it("should prevent multiple concurrent redirects", async () => {
-    global.fetch = jest.fn().mockResolvedValue({ status: 401 });
+    global.fetch = vi.fn().mockResolvedValue({ status: 401 });
 
     renderHook(() => useSessionMonitor());
 

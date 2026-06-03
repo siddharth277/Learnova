@@ -2,11 +2,13 @@ import { put, del } from "@vercel/blob";
 import { randomUUID } from "crypto";
 import { connectDb } from "@/lib/mongodb";
 import { jsonError, jsonSuccess } from "@/lib/api-response";
-import { withErrorHandler, authenticateRequest } from "@/lib/error-handler";
+import { withErrorHandler } from "@/lib/error-handler";
+import { requireAuth } from "@/lib/rbac";
 import { AppError, ValidationError, ForbiddenError } from "@/lib/errors";
 import { z } from "zod";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { executeSaga, findExistingOperation, markIdempotent } from "@/lib/transactionCoordinator";
+import { validateFaceDescriptor } from "@/lib/images/imagesService";
 
 export const dynamic = "force-dynamic";
 
@@ -128,10 +130,7 @@ export const POST =
       }
 
       // Authenticate
-      const decodedToken =
-        await authenticateRequest(
-          req
-        );
+      const decodedToken = await requireAuth(req);
 
       // Form data
       const formData =
@@ -170,12 +169,9 @@ export const POST =
       let faceDescriptor = null;
       if (rawFaceDescriptor) {
         try {
-          faceDescriptor = JSON.parse(rawFaceDescriptor);
-          if (!Array.isArray(faceDescriptor)) {
-            throw new Error();
-          }
-        } catch {
-          return jsonError("Invalid face descriptor format", 400);
+          faceDescriptor = validateFaceDescriptor(rawFaceDescriptor);
+        } catch (error) {
+          return jsonError(error.message || "Invalid face descriptor format", 400);
         }
       }
 
@@ -337,13 +333,17 @@ export const POST =
 
       const sagaKey = idempotencyKey || `register_${decodedToken.uid}_${Date.now()}`;
 
+      let uploadedBlobUrl = null;
+      let insertedUser = null;
+
       const sagaResult = await executeSaga({
         operationType: "register",
         uid: decodedToken.uid,
+        idempotencyKey: sagaKey,
         steps: [
           {
             name: "upload_blob",
-            execute: async () => {
+            execute: async (ctx) => {
               const blob =
                 await put(
                   fileName,
@@ -355,26 +355,25 @@ export const POST =
                       "public",
                   }
                 );
-              // Store blob URL on the saga context for subsequent steps
-              sagaResult._blobUrl = blob.url;
+              ctx._blobUrl = blob.url;
               return blob;
             },
-            compensate: async () => {
-              if (sagaResult._blobUrl) {
+            compensate: async (ctx) => {
+              if (ctx._blobUrl) {
                 try {
-                  await del(sagaResult._blobUrl);
+                  await del(ctx._blobUrl);
                 } catch {}
               }
             },
           },
           {
             name: "write_mongodb",
-            execute: async () => {
+            execute: async (ctx) => {
               const user = {
                 name: sanitizedName,
                 rollNo: sanitizedRollNo,
                 email,
-                image: sagaResult._blobUrl,
+                image: ctx._blobUrl,
                 firebaseUid: decodedToken.uid,
               };
 
@@ -387,17 +386,17 @@ export const POST =
                   user
                 );
 
-              sagaResult._insertedUser = {
+              ctx._insertedUser = {
                 _id: result.insertedId,
                 name: user.name,
                 rollNo: user.rollNo,
                 email: user.email,
               };
             },
-            compensate: async () => {
-              if (sagaResult._insertedUser?._id) {
+            compensate: async (ctx) => {
+              if (ctx._insertedUser?._id) {
                 try {
-                  await users.deleteOne({ _id: sagaResult._insertedUser._id });
+                  await users.deleteOne({ _id: ctx._insertedUser._id });
                 } catch {}
               }
             },
@@ -415,7 +414,7 @@ export const POST =
 
       const resultPayload = {
         message: "User registered successfully",
-        user: sagaResult._insertedUser,
+        user: sagaResult.context._insertedUser,
       };
 
       // Mark as idempotent for retry dedup

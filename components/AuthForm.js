@@ -24,6 +24,7 @@ export default function AuthForm({
   onRoleChange,
   onToggleLogin,
   onForgotPassword,
+  errors: externalErrors = {},
 }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -37,7 +38,8 @@ export default function AuthForm({
     confirmPassword: "", 
   });
 
-  const [errors, setErrors] = useState({});
+  const [internalErrors, setErrors] = useState({});
+  const errors = { ...internalErrors, ...externalErrors };
   const { fullName, instituteName, email, password, inviteCode, confirmPassword } = formData;
 
   const passwordStrength = useMemo(
@@ -50,7 +52,7 @@ export default function AuthForm({
   );
 
   const clearError = (field) => {
-  if (errors[field]) {
+  if (internalErrors[field]) {
     setErrors((prev) => {
       const updatedErrors = { ...prev };
       delete updatedErrors[field];
@@ -78,7 +80,7 @@ const handleFieldChange = (field) => (value) => {
       [field]: value,
     }));
 
-    if (errors[field]) {
+    if (internalErrors[field]) {
       validateField(field, value);
     }
 
@@ -101,6 +103,28 @@ const handleFieldChange = (field) => (value) => {
 
   const handleSubmit = (event) => {
     event.preventDefault();
+
+    const fieldsToValidate = isLogin
+      ? ["email", "password"]
+      : ["fullName", "email", "password", "confirmPassword"];
+    const nextErrors = {};
+
+    fieldsToValidate.forEach((field) => {
+      const result = validateAuthField(field, formData[field], {
+        isLogin,
+        password,
+        confirmPassword,
+      });
+
+      if (result !== true) {
+        nextErrors[field] = result;
+      }
+    });
+
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors((prev) => ({ ...prev, ...nextErrors }));
+      return;
+    }
 
     if (!isLogin && password !== confirmPassword) {
       setErrors((prev) => ({
@@ -243,7 +267,7 @@ const handleFieldChange = (field) => (value) => {
             {isLoading ? (
               <>
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                Processing...
+                {isLogin ? "Logging in..." : "Registering..."}
               </>
             ) : (
               <>

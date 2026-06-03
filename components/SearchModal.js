@@ -2,36 +2,10 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { 
-  Search, 
-  Home, 
-  Activity, 
-  Mail, 
-  LayoutDashboard, 
-  User, 
-  Settings, 
-  UserCheck, 
-  Bell, 
-  LogIn, 
-  ArrowRight,
-  X
-} from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useAuthContext } from "@/contexts/AuthContext";
-
-const getIcon = (label) => {
-  switch (label) {
-    case "Home": return Home;
-    case "Activities": return Activity;
-    case "Contact": return Mail;
-    case "Dashboard": return LayoutDashboard;
-    case "Profile": return User;
-    case "Settings": return Settings;
-    case "Mark Attendance": return UserCheck;
-    case "Notice Board": return Bell;
-    case "Login / Signup": return LogIn;
-    default: return ArrowRight;
-  }
-};
+import RecentActivityWidget from "@/components/ui/RecentActivityWidget";
+import { getSearchModalItems } from "@/lib/navigation";
 
 export default function SearchModal({ isOpen, onClose }) {
   const router = useRouter();
@@ -39,6 +13,9 @@ export default function SearchModal({ isOpen, onClose }) {
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [debouncedQuery, setDebouncedQuery] = useState(query);
+
+  const [recentSearches, setRecentSearches] = useState([]);
+  const [showRecentSearches, setShowRecentSearches] = useState(false);
 
   // Setup debounce timer for keystroke throttling (300ms delay)
   useEffect(() => {
@@ -55,51 +32,34 @@ export default function SearchModal({ isOpen, onClose }) {
   const inputRef = useRef(null);
   const modalRef = useRef(null);
 
-  const getDashboardLink = () => {
-    if (!userProfile?.role) return "/profile";
-    switch (userProfile.role) {
-      case "student": return "/student/dashboard";
-      case "teacher": return "/teacher/dashboard";
-      case "institute": return "/institute/dashboard";
-      case "admin": return "/admin/dashboard";
-      default: return "/profile";
-    }
-  };
+  useEffect(() => {
+    const savedSearches = JSON.parse(
+      localStorage.getItem("recentSearches") || "[]"
+    );
+  
+    setRecentSearches(savedSearches);
+  }, []);
 
   const items = useMemo(() => {
-    const list = [
-      { label: "Home", href: "/", category: "Navigation" },
-      { label: "Activities", href: "/activity", category: "Navigation" },
-      { label: "Contact", href: "/contact", category: "Navigation" },
-    ];
+    return getSearchModalItems({
+      isAuthenticated,
+      role: userProfile?.role,
+    });
+  }, [isAuthenticated, userProfile?.role]);
 
-    if (isAuthenticated) {
-      list.push(
-        { label: "Dashboard", href: getDashboardLink(), category: "Account" },
-        { label: "Profile", href: "/profile", category: "Account" },
-        { label: "Settings", href: "/settings", category: "Account" },
-        { label: "Mark Attendance", href: "/attendance", category: "Quick Actions" },
-        { label: "Notice Board", href: "/notices", category: "Quick Actions" }
-      );
-    } else {
-      list.push({ label: "Login / Signup", href: "/auth", category: "Account" });
-    }
-
-    return list;
-  }, [isAuthenticated, userProfile]);
-
-  
+  const normalizedQuery = debouncedQuery.trim().toLowerCase();
   const filteredItems = useMemo(() => {
     return items.filter(item => {
       const matchesCategory = selectedCategory === "All" || item.category === selectedCategory;
 
-      const matchesSearch = !debouncedQuery.trim() || 
-        item.label.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
-        item.category.toLowerCase().includes(debouncedQuery.toLowerCase());
+      const matchesSearch =
+        !normalizedQuery ||
+        item.label.toLowerCase().includes(normalizedQuery) ||
+        item.category.toLowerCase().includes(normalizedQuery);
 
       return matchesCategory && matchesSearch;
     });
-  }, [debouncedQuery, selectedCategory, items]);
+  }, [normalizedQuery, selectedCategory, items]);
 
   // Reset selected index when query changes
   useEffect(() => {
@@ -145,7 +105,32 @@ export default function SearchModal({ isOpen, onClose }) {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, filteredItems, selectedIndex]);
 
+  const saveSearch = (searchTerm) => {
+    if (!searchTerm.trim()) return;
+  
+    const updated = [
+      searchTerm,
+      ...recentSearches.filter(
+        (item) => item.toLowerCase() !== searchTerm.toLowerCase()
+      ),
+    ].slice(0, 10);
+  
+    setRecentSearches(updated);
+  
+    localStorage.setItem(
+      "recentSearches",
+      JSON.stringify(updated)
+    );
+  };
+  
+  const clearRecentSearches = () => {
+    setRecentSearches([]);
+    localStorage.removeItem("recentSearches");
+  };
+
   const handleNavigate = (href) => {
+    saveSearch(query);
+  
     router.push(href);
     onClose();
   };
@@ -175,6 +160,10 @@ export default function SearchModal({ isOpen, onClose }) {
             type="text"
             placeholder="Search pages and actions..."
             value={query}
+            onFocus={() => setShowRecentSearches(true)}
+            onBlur={() => {
+              setTimeout(() => setShowRecentSearches(false), 200);
+            }}
             onChange={(e) => setQuery(e.target.value)}
             className="flex-1 bg-transparent text-white placeholder-white/40 focus:outline-none text-base"
           />
@@ -186,6 +175,44 @@ export default function SearchModal({ isOpen, onClose }) {
             <X className="h-4 w-4" />
           </button>
         </div>
+
+        {showRecentSearches &&
+          !query &&
+          recentSearches.length > 0 && (
+            <div className="px-4 py-3 border-b border-white/10">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-white/50">
+                  Recent Searches
+                </span>
+        
+                <button
+                  onClick={clearRecentSearches}
+                  className="text-xs text-red-400 hover:text-red-300"
+                >
+                  Clear All
+                </button>
+              </div>
+        
+              <div className="flex flex-wrap gap-2">
+                {recentSearches.map((search, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setQuery(search)}
+                    className="px-3 py-1 rounded-full bg-white/10 text-xs text-white/70 hover:bg-white/20"
+                  >
+                    {search}
+                  </button>
+                ))}
+              </div>
+            </div>
+        )}
+
+        {!query.trim() && (
+          <div className="px-3 py-3 border-b border-white/10">
+            <RecentActivityWidget maxItems={5} storageType="pages" />
+          </div>
+        )}
+
         {/* ==================== CATEGORY FILTER PILLS ==================== */}
         <div className="flex flex-wrap items-center gap-1.5 px-4 py-2 bg-slate-950/20 border-b border-white/5">
           {categoriesList.map((cat) => (
@@ -222,7 +249,7 @@ export default function SearchModal({ isOpen, onClose }) {
             </div>
           ) : (
             filteredItems.map((item, index) => {
-              const Icon = getIcon(item.label);
+              const Icon = item.icon;
               const isSelected = index === selectedIndex;
               return (
                 <div

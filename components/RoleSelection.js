@@ -8,6 +8,7 @@ const ROLE_GLOW = {
   teacher: "hover:border-emerald-500/40 hover:shadow-emerald-500/8",
   institute: "hover:border-violet-500/40 hover:shadow-violet-500/8",
   admin: "hover:border-orange-500/40 hover:shadow-orange-500/8",
+  parent: "hover:border-pink-500/40 hover:shadow-pink-500/8",
 };
 
 const FEATURES = [
@@ -32,12 +33,7 @@ const FEATURES = [
 ];
 
 export default function RoleSelection({ onRoleSelect }) {
-  const handleKeyDown = (e, role) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onRoleSelect(role);
-    }
-  };
+
 
   return (
     <div className="relative mx-auto max-w-5xl px-4 py-10 text-center">
@@ -70,7 +66,6 @@ export default function RoleSelection({ onRoleSelect }) {
               key={role}
               type="button"
               onClick={() => onRoleSelect(role)}
-              onKeyDown={(e) => handleKeyDown(e, role)}
               aria-label={`Select ${config.title} role`}
               className={`group relative flex flex-col items-center rounded-2xl border border-border bg-card p-6 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${glow}`}
             >
@@ -91,7 +86,8 @@ export default function RoleSelection({ onRoleSelect }) {
 
               {/* CTA pill — appears on hover */}
               <div
-                className={`mt-5 w-full rounded-xl bg-gradient-to-r ${config.color} py-2 text-sm font-semibold text-white opacity-0 transition-all duration-300 group-hover:opacity-100`}
+                aria-hidden="true"
+                className={`mt-5 w-full rounded-xl bg-gradient-to-r ${config.color} py-2 text-sm font-semibold text-white opacity-0 transition-all duration-300 group-hover:opacity-100 group-focus-visible:opacity-100`}
               >
                 Select Role
               </div>
