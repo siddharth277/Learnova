@@ -282,11 +282,15 @@ const NoticeCard = ({ notice, isRead, onToggleRead, searchQuery, getRelativeTime
     ].join("\n");
 
     try {
+      // FIX FOR ISSUE #2006: Add toast confirmation on success
       await navigator.clipboard.writeText(mdText);
       setCopyFeedback(true);
+      toast.success('Notice link copied to clipboard!');
       setTimeout(() => setCopyFeedback(false), 2000);
     } catch (err) {
       console.error("Failed to copy markdown to clipboard", err);
+      // Fallback UI/UX error handling
+      toast.error('Failed to copy. Check browser permissions.');
     }
   }, [notice]);
 
