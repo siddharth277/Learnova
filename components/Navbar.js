@@ -32,6 +32,7 @@ import {
   MessageSquareWarning,
   BellOff,
   HeartPulse,
+  Calendar,
 } from "lucide-react";
 
 // ── Animation Variants ──────────────────────────────────────────────────────
@@ -253,6 +254,7 @@ export function Navbar() {
     { href: "/wellness", label: "Wellness", icon: HeartPulse },
     { href: "/productivity", label: "Focus", icon: Sparkles },
     { href: "/activity", label: "Activities", icon: Activity },
+    { href: "/calendar", label: "Calendar", icon: Calendar },
     { href: "/complaints", label: "Complaints", icon: MessageSquareWarning },
     { href: "/contact", label: "Contact", icon: Mail },
     { href: "/StudyAI", label: "Study", icon: BrainCircuit },
@@ -347,6 +349,7 @@ export function Navbar() {
             {/* Logo */}
             <Link
               href="/"
+              onClick={() => setIsMenuOpen(false)}
               className="flex items-center space-x-3 group shrink-0"
             >
               <motion.div
