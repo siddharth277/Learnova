@@ -1,11 +1,16 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { useEffect } from 'react';
 
 export default function Error({ error, reset }) {
   const t = useTranslations('common');
 
-  console.error('Runtime error:', error?.message ?? 'Unknown error');
+  useEffect(() => {
+    console.error('Runtime error:', error?.message ?? 'Unknown error', {
+      digest: error?.digest,
+    });
+  }, [error]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen px-4 text-center">
@@ -17,10 +22,16 @@ export default function Error({ error, reset }) {
       </p>
       <button
         onClick={() => reset()}
-        className="px-5 py-2 rounded bg-black text-white hover:opacity-80"
+        className="px-5 py-2 rounded bg-black text-white hover:opacity-80 mb-6"
       >
         {t('try_again')}
       </button>
+
+      {error?.digest && (
+        <p className="text-xs text-gray-400 font-mono select-all">
+          Error ID: {error.digest}
+        </p>
+      )}
     </div>
   );
 }
