@@ -1,45 +1,14 @@
 import { NextResponse } from "next/server";
+import admin from "firebase-admin";
 import { authorizeCronRequest } from "@/lib/cronAuth";
 import { connectDb } from "@/lib/mongodb";
+import { initializeFirebase } from "@/lib/firebase-admin";
 import { evaluateStudentAttendance } from "@/lib/attendanceUtils";
 
 export const dynamic = "force-dynamic";
 
 const STUDENT_BATCH_SIZE = 50;
 const FLUSH_THRESHOLD = 500;
-
-function getStudentUid(student) {
-  return student?.uid || student?.firebaseUid;
-}
-
-function buildWarningPayload({ uid, email, name, evaluation, threshold, now }) {
-  const notification = {
-    userId: uid,
-    title: "Low Attendance Warning",
-    message: `Your current attendance is ${evaluation.percentage}%, which is below the required ${threshold}%. Please improve your attendance.`,
-    type: "warning",
-    read: false,
-    createdAt: now,
-  };
-
-  const warningLog = {
-    userId: uid,
-    percentage: evaluation.percentage,
-    threshold,
-    createdAt: now,
-  };
-
-  const emailData = email
-    ? {
-        to_email: email,
-        to_name: name || "Student",
-        attendance_percentage: evaluation.percentage,
-        threshold,
-      }
-    : null;
-
-  return { notification, warningLog, emailData };
-}
 
 async function getRecentWarningUserIds(db, userIds, cooldownDate) {
   if (userIds.length === 0) {
@@ -254,32 +223,9 @@ export async function GET(request) {
           if (userRecords) {
             userRecords.push(record);
           }
-      // Load attendance from MongoDB scoped to this institute only.
-      const instituteStudentUids = instituteStudents
-        .map((s) => s.firebaseUid)
-        .filter(Boolean);
-      const mongoAttendance = await loadMongoAttendanceByUser(
-        db,
-        instituteId,
-        instituteStudentUids
-      );
-
-      // Build attendanceByUser from mongoAttendance
-      const attendanceByUser = new Map();
-      for (const [uid, records] of mongoAttendance || []) {
-        attendanceByUser.set(uid, records);
-      }
-
-      for (const student of instituteStudents) {
-        const studentUid = student.firebaseUid;
-        if (!studentUid) continue;
-
-        // Skip if warned recently (batch cooldown check)
-        if (recentWarningUserIds.has(studentUid)) {
-          continue;
         }
 
-        // Check cooldown for this batch only (scoped $in query)
+        // Check cooldown for this batch (scoped $in query)
         const recentLogs = await db.collection("warning_logs").find({
           userId: { $in: batchUids },
           createdAt: { $gte: cooldownDate },
@@ -295,13 +241,13 @@ export async function GET(request) {
 
           if (evaluation.isBelowThreshold) {
             const email = student.email;
-            const name = student.name || student.fullName || 'Student';
+            const name = student.name || student.fullName || "Student";
 
             notificationsToInsert.push({
               userId: uid,
-              title: 'Low Attendance Warning',
+              title: "Low Attendance Warning",
               message: `Your current attendance is ${evaluation.percentage}%, which is below the required ${threshold}%. Please improve your attendance.`,
-              type: 'warning',
+              type: "warning",
               read: false,
               createdAt: now,
             });
@@ -309,41 +255,6 @@ export async function GET(request) {
             warningLogsToInsert.push({
               userId: uid,
               percentage: evaluation.percentage,
-        const uid = student.uid || student.firebaseUid;
-        if (!uid) continue;
-
-        // Use MongoDB attendance data (scoped by institute) instead of Firestore
-        const studentAttendance = attendanceByUser.get(uid) || [];
-        const evaluation = evaluateStudentAttendance(
-          studentAttendance,
-          threshold
-        );
-
-        if (evaluation.isBelowThreshold) {
-          const email = student.email;
-          const name = student.name || student.fullName || "Student";
-
-          notificationsToInsert.push({
-            userId: uid,
-            title: "Low Attendance Warning",
-            message: `Your current attendance is ${evaluation.percentage}%, which is below the required ${threshold}%. Please improve your attendance.`,
-            type: "warning",
-            read: false,
-            createdAt: now,
-          });
-
-          warningLogsToInsert.push({
-            userId: uid,
-            percentage: evaluation.percentage,
-            threshold,
-            createdAt: now,
-          });
-
-          if (email) {
-            emailsToSend.push({
-              to_email: email,
-              to_name: name,
-              attendance_percentage: evaluation.percentage,
               threshold,
               createdAt: now,
             });
@@ -366,7 +277,6 @@ export async function GET(request) {
           await flushNotifications();
         }
       }
-    }
 
     await flushNotifications();
     await sendWarningEmails(emailsToSend);
