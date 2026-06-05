@@ -246,7 +246,11 @@ export const useAuth = () => {
               }
             },
             (snapError) => {
-              if (isMounted()) setLoading(false);
+              console.error("User profile snapshot error:", snapError);
+              if (isMounted()) {
+                setError("Failed to sync your profile data.");
+                setLoading(false);
+              }
             }
           );
         } else {
