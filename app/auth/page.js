@@ -39,12 +39,6 @@ function AuthPageContent() {
   const [isLogin, setIsLogin] = useState(mode !== "signup");
   const [selectedRole, setSelectedRole] = useState("");
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [instituteName, setInstituteName] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
-
   const [isLoading, setIsLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [errors, setErrors] = useState({});
@@ -69,28 +63,20 @@ function AuthPageContent() {
   const handleRoleChange = () => {
     setShowRoleSelection(true);
     setErrors({});
-    setEmail("");
-    setPassword("");
-    setFullName("");
-    setInstituteName("");
-    setInviteCode("");
   };
 
   const handleToggleLogin = () => {
     setIsLogin(!isLogin);
     setErrors({});
-    setPassword("");
-    if (!isLogin) {
-      setFullName("");
-      setInstituteName("");
-      setInviteCode("");
-    }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const formData = { selectedRole, email, password, fullName, instituteName, inviteCode };
-    const { isValid, errors: validationErrors } = validateForm(formData, isLogin);
+  const handleSubmit = async (formData) => {
+    // <-- Accept formData directly here
+    const { email, password, fullName, instituteName, inviteCode } = formData; // Extract fields for the API call
+    const { isValid, errors: validationErrors } = validateForm(
+      formData,
+      isLogin
+    );
 
     if (!isValid) {
       setErrors(validationErrors);
@@ -121,14 +107,21 @@ function AuthPageContent() {
         setShowRoleSelection(true);
         router.push("/profile");
       } else if (result.success) {
-        toast.success(isLogin ? "Successfully logged in!" : "Account created successfully!");
+        toast.success(
+          isLogin ? "Successfully logged in!" : "Account created successfully!"
+        );
         setShowRoleSelection(true);
         redirectBasedOnRole(result.userData.role, router);
       } else {
-        setErrors({ submit: result.error || "Something went wrong. Please try again." });
+        setErrors({
+          submit: result.error || "Something went wrong. Please try again.",
+        });
       }
     } catch {
-      setErrors({ submit: "Authentication failed. Please verify your credentials and try again." });
+      setErrors({
+        submit:
+          "Authentication failed. Please verify your credentials and try again.",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -139,24 +132,30 @@ function AuthPageContent() {
       setErrors({ role: "Please select your role first" });
       return;
     }
-    if (!isLogin && selectedRole === USER_ROLES.INSTITUTE && !instituteName.trim()) {
-      setErrors({ instituteName: "Institute name is required" });
-      return;
-    }
 
     setIsLoading(true);
     setErrors({});
 
     try {
-      const result = await loginWithGoogle(selectedRole, isLogin, { fullName, instituteName });
+      // Pass safe fallbacks since local text state is handled inside AuthForm now
+      const result = await loginWithGoogle(selectedRole, isLogin, {
+        fullName: "",
+        instituteName: "",
+      });
       if (result.success) {
         toast.success("Successfully logged in with Google!");
         redirectBasedOnRole(result.userData.role, router);
       } else {
-        setErrors({ submit: result.error || "Google sign-in could not be completed. Please try again." });
+        setErrors({
+          submit:
+            result.error ||
+            "Google sign-in could not be completed. Please try again.",
+        });
       }
     } catch {
-      setErrors({ submit: "An unexpected error occurred during Google authentication." });
+      setErrors({
+        submit: "An unexpected error occurred during Google authentication.",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -178,14 +177,19 @@ function AuthPageContent() {
     try {
       const result = await resetPassword(emailToReset);
       if (result.success) {
-        toast.success("Password reset email sent! Check your inbox and spam folder.");
+        toast.success(
+          "Password reset email sent! Check your inbox and spam folder."
+        );
         setShowForgotPassword(false);
         setForgotPasswordEmail("");
       } else {
         setErrors({ forgotEmail: result.error });
       }
     } catch {
-      setErrors({ forgotEmail: "Password reset failed. Please verify your email and try again." });
+      setErrors({
+        forgotEmail:
+          "Password reset failed. Please verify your email and try again.",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -193,7 +197,7 @@ function AuthPageContent() {
 
   const handleOpenForgotPassword = () => {
     setShowForgotPassword(true);
-    setForgotPasswordEmail(email);
+    setForgotPasswordEmail(""); // changed from email to ""
     setErrors({});
   };
 
@@ -225,18 +229,6 @@ function AuthPageContent() {
                   <AuthForm
                     isLogin={isLogin}
                     selectedRole={selectedRole}
-                    email={email}
-                    setEmail={setEmail}
-                    password={password}
-                    setPassword={setPassword}
-                    fullName={fullName}
-                    setFullName={setFullName}
-                    instituteName={instituteName}
-                    setInstituteName={setInstituteName}
-                    inviteCode={inviteCode}
-                    setInviteCode={setInviteCode}
-                    errors={errors}
-                    setErrors={setErrors}
                     isLoading={isLoading}
                     onSubmit={handleSubmit}
                     onGoogleLogin={handleGoogleLogin}

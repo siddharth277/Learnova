@@ -18,28 +18,36 @@ import {
 export default function AuthForm({
   isLogin,
   selectedRole,
-  email,
-  setEmail,
-  password,
-  setPassword,
-  fullName,
-  setFullName,
-  instituteName,
-  setInstituteName,
-  inviteCode,
-  setInviteCode,
-  errors,
-  setErrors,
   isLoading,
   onSubmit,
   onGoogleLogin,
   onRoleChange,
   onToggleLogin,
   onForgotPassword,
+  errors: externalErrors = {},
 }) {
   const [showPassword, setShowPassword] = useState(false);
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const [formData, setFormData] = useState({
+    fullName: "",
+    instituteName: "",
+    email: "",
+    password: "",
+    inviteCode: "",
+    confirmPassword: "",
+  });
+
+  const [internalErrors, setErrors] = useState({});
+  const errors = { ...internalErrors, ...externalErrors };
+  const {
+    fullName,
+    instituteName,
+    email,
+    password,
+    inviteCode,
+    confirmPassword,
+  } = formData;
 
   const passwordStrength = useMemo(
     () => getPasswordStrength(password || ""),
@@ -51,11 +59,14 @@ export default function AuthForm({
   );
 
   const clearError = (field) => {
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }));
+    if (internalErrors[field]) {
+      setErrors((prev) => {
+        const updatedErrors = { ...prev };
+        delete updatedErrors[field];
+        return updatedErrors;
+      });
     }
   };
-
   const validateField = (field, value) => {
     const result = validateAuthField(field, value, {
       isLogin,
@@ -70,17 +81,24 @@ export default function AuthForm({
     }
   };
 
-  const handleFieldChange = (field, setter) => (value) => {
-    setter(value);
+  const handleFieldChange = (field) => (value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
 
-    if (errors[field]) {
+    if (internalErrors[field]) {
       validateField(field, value);
     }
 
     if (field === "password" && !isLogin && confirmPassword) {
-      const confirmResult = validateAuthField("confirmPassword", confirmPassword, {
-        password: value,
-      });
+      const confirmResult = validateAuthField(
+        "confirmPassword",
+        confirmPassword,
+        {
+          password: value,
+        }
+      );
 
       if (confirmResult === true) {
         clearError("confirmPassword");
@@ -97,6 +115,28 @@ export default function AuthForm({
   const handleSubmit = (event) => {
     event.preventDefault();
 
+    const fieldsToValidate = isLogin
+      ? ["email", "password"]
+      : ["fullName", "email", "password", "confirmPassword"];
+    const nextErrors = {};
+
+    fieldsToValidate.forEach((field) => {
+      const result = validateAuthField(field, formData[field], {
+        isLogin,
+        password,
+        confirmPassword,
+      });
+
+      if (result !== true) {
+        nextErrors[field] = result;
+      }
+    });
+
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors((prev) => ({ ...prev, ...nextErrors }));
+      return;
+    }
+
     if (!isLogin && password !== confirmPassword) {
       setErrors((prev) => ({
         ...prev,
@@ -105,7 +145,8 @@ export default function AuthForm({
       return;
     }
 
-    onSubmit(event);
+    // Pass the local state object cleanly to the parent's submit function
+    onSubmit(formData);
   };
 
   const selectedRoleConfig = selectedRole ? ROLE_CONFIG[selectedRole] : null;
@@ -142,7 +183,7 @@ export default function AuthForm({
                 label="Full Name"
                 name="fullName"
                 value={fullName}
-                onChange={handleFieldChange("fullName", setFullName)}
+                onChange={handleFieldChange("fullName")}
                 onBlur={handleFieldBlur("fullName")}
                 error={errors.fullName}
                 aria-invalid={errors.fullName ? "true" : "false"}
@@ -155,11 +196,13 @@ export default function AuthForm({
                   label="Institute Name"
                   name="instituteName"
                   value={instituteName}
-                  onChange={handleFieldChange("instituteName", setInstituteName)}
+                  onChange={handleFieldChange("instituteName")}
                   onBlur={handleFieldBlur("instituteName")}
                   error={errors.instituteName}
                   aria-invalid={errors.instituteName ? "true" : "false"}
-                  aria-describedby={errors.instituteName ? "institute-error" : undefined}
+                  aria-describedby={
+                    errors.instituteName ? "institute-error" : undefined
+                  }
                   placeholder="Enter your institute name"
                 />
               ) : null}
@@ -172,7 +215,7 @@ export default function AuthForm({
             autoComplete="email"
             maxLength={254}
             value={email}
-            onChange={handleFieldChange("email", setEmail)}
+            onChange={handleFieldChange("email")}
             onBlur={handleFieldBlur("email")}
             error={errors.email}
             aria-invalid={errors.email ? "true" : "false"}
@@ -187,7 +230,7 @@ export default function AuthForm({
             autoComplete={isLogin ? "current-password" : "new-password"}
             maxLength={254}
             value={password}
-            onChange={handleFieldChange("password", setPassword)}
+            onChange={handleFieldChange("password")}
             onBlur={handleFieldBlur("password")}
             error={errors.password}
             placeholder="Enter your password"
@@ -204,9 +247,13 @@ export default function AuthForm({
               label="Confirm Password"
               name="confirmPassword"
               value={confirmPassword}
-              onChange={handleFieldChange("confirmPassword", setConfirmPassword)}
+              onChange={handleFieldChange("confirmPassword")}
               onBlur={handleFieldBlur("confirmPassword")}
               error={errors.confirmPassword}
+              aria-invalid={errors.confirmPassword ? "true" : "false"}
+              aria-describedby={
+                errors.confirmPassword ? "confirm-password-error" : undefined
+              }
               placeholder="Confirm your password"
               icon={Lock}
               isVisible={showConfirmPassword}
@@ -220,7 +267,7 @@ export default function AuthForm({
                 type="button"
                 onClick={onForgotPassword}
                 className="text-sm text-indigo-400 hover:text-indigo-300 font-medium"
-              >
+               aria-label="Action button">
                 Forgot password?
               </button>
             </div>
@@ -235,7 +282,7 @@ export default function AuthForm({
             {isLoading ? (
               <>
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                Processing...
+                {isLogin ? "Logging in..." : "Registering..."}
               </>
             ) : (
               <>
@@ -252,7 +299,9 @@ export default function AuthForm({
               <div className="w-full border-t border-border"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-card text-muted-foreground">Or continue with</span>
+              <span className="px-2 bg-card text-muted-foreground">
+                Or continue with
+              </span>
             </div>
           </div>
 
@@ -263,10 +312,22 @@ export default function AuthForm({
             className="mt-4 w-full bg-muted border border-border text-foreground py-3 px-4 rounded-xl font-medium hover:bg-muted/80 focus:ring-4 focus:ring-gray-500/25 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+              <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+              />
             </svg>
             {isLoading ? "Please wait..." : "Continue with Google"}
           </button>
@@ -278,7 +339,7 @@ export default function AuthForm({
             <button
               onClick={onToggleLogin}
               className="text-indigo-400 hover:text-indigo-300 font-semibold"
-            >
+             aria-label="Action button">
               {isLogin ? "Sign Up" : "Sign In"}
             </button>
           </p>

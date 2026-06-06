@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect, useCallback } from "react";
-
+import { BrainCircuit } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -32,6 +32,7 @@ import {
   MessageSquareWarning,
   BellOff,
   HeartPulse,
+  Calendar,
 } from "lucide-react";
 
 // ── Animation Variants ──────────────────────────────────────────────────────
@@ -97,7 +98,7 @@ function NavLink({ href, label, isActive }) {
       <span
         className={`relative z-10 transition-colors duration-300 ${
           isActive
-            ? "text-blue-600 dark:text-blue-400"
+            ? "text-blue-600 font-semibold dark:text-blue-400"
             : "text-zinc-700 dark:text-zinc-300 group-hover:text-blue-600 dark:group-hover:text-blue-300"
         }`}
       >
@@ -137,8 +138,10 @@ export function Navbar() {
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll, { passive: true });
+    // Initial check on mount or route change
+    onScroll();
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [pathname]);
 
   const handleClickOutside = useCallback((e) => {
     if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -232,18 +235,29 @@ export function Navbar() {
         return "/institute/dashboard";
       case "admin":
         return "/admin/dashboard";
+      case "parent":
+        return "/parent/dashboard";
       default:
         return "/profile";
     }
   };
 
+  const isRouteActive = (href) => {
+    if (!pathname) return false;
+    if (href === "/") return pathname === href;
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
   const navigationItems = [
     { href: "/", label: "Home", icon: Home },
+    { href: "/about", label: "About", icon: BookOpen },
     { href: "/wellness", label: "Wellness", icon: HeartPulse },
     { href: "/productivity", label: "Focus", icon: Sparkles },
     { href: "/activity", label: "Activities", icon: Activity },
+    { href: "/calendar", label: "Calendar", icon: Calendar },
     { href: "/complaints", label: "Complaints", icon: MessageSquareWarning },
     { href: "/contact", label: "Contact", icon: Mail },
+    { href: "/StudyAI", label: "Study", icon: BrainCircuit },
   ];
 
   const userMenuItems = [
@@ -335,6 +349,7 @@ export function Navbar() {
             {/* Logo */}
             <Link
               href="/"
+              onClick={() => setIsMenuOpen(false)}
               className="flex items-center space-x-3 group shrink-0"
             >
               <motion.div
@@ -365,7 +380,7 @@ export function Navbar() {
                   key={item.href}
                   href={item.href}
                   label={item.label}
-                  isActive={pathname === item.href}
+                  isActive={isRouteActive(item.href)}
                 />
               ))}
             </div>
@@ -460,7 +475,7 @@ export function Navbar() {
                               <button
                                 onClick={markAllAsRead}
                                 className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-                              >
+                               aria-label="Action button">
                                 Mark all read
                               </button>
                             )}
@@ -585,7 +600,7 @@ export function Navbar() {
                             role="menuitem"
                             onClick={handleLogout}
                             className="w-full flex items-center px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/8 transition-colors gap-2.5"
-                          >
+                           aria-label="Action button">
                             <LogOut className="h-4 w-4" /> Logout
                           </button>
                         </motion.div>
@@ -700,7 +715,7 @@ export function Navbar() {
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="fixed top-4 right-4 max-w-[85vw] w-64 rounded-2xl shadow-2xl p-4 space-y-4 z-[90] flex flex-col"
+              className="fixed top-[max(1rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))] max-w-[calc(100vw-2rem)] w-64 rounded-2xl shadow-2xl p-4 sm:p-5 space-y-4 z-[90] flex flex-col"
               style={{
                 backdropFilter: "blur(24px)",
                 WebkitBackdropFilter: "blur(24px)",
@@ -721,6 +736,7 @@ export function Navbar() {
                   whileTap={{ scale: 0.9 }}
                   onClick={() => setIsMenuOpen(false)}
                   className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/8 transition-colors"
+                  aria-label="Close menu"
                 >
                   <X className="h-4 w-4 text-zinc-400" />
                 </motion.button>
@@ -765,16 +781,16 @@ export function Navbar() {
                 className="flex flex-col gap-0.5"
               >
                 {navigationItems.map((item) => {
-                  const isActive = pathname === item.href;
+                  const isActive = isRouteActive(item.href);
                   return (
                     <motion.div key={item.href} variants={staggerItem}>
                       <Link
                         href={item.href}
                         onClick={() => setIsMenuOpen(false)}
-                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-colors ${
                           isActive
-                            ? "bg-blue-50 dark:bg-blue-600/15 text-blue-600 dark:text-blue-400"
-                            : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-white/5"
+                            ? "bg-blue-50 dark:bg-blue-600/15 text-blue-600 font-semibold dark:text-blue-400"
+                            : "text-zinc-700 font-medium dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-white/5"
                         }`}
                       >
                         <item.icon

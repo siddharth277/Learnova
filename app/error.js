@@ -29,9 +29,11 @@ export default function Error({ error, reset }) {
       <h1 className="text-3xl font-bold mb-4">
         Service Temporarily Unavailable
       </h1>
+
       <p className="text-gray-600 mb-6">
         {errorText}
       </p>
+
       <button
         onClick={() => reset()}
         className="px-5 py-2 rounded bg-black text-white hover:opacity-80 mb-6"
